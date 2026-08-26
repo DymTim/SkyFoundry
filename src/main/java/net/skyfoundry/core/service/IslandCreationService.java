@@ -45,21 +45,28 @@ public final class IslandCreationService {
                 configManager.getStartingIslandSize(),
                 coordinates.slotIndex());
 
-        if (configManager.isStarterPlatformEnabled()) {
-            createStarterPlatform(island);
-        }
+        generateStarterIsland(island);
 
         return island;
     }
 
-    private void createStarterPlatform(Island island) {
+    public void generateStarterIsland(
+            Island island) {
+        if (!configManager
+                .isStarterPlatformEnabled()) {
+
+            return;
+        }
+
         World world = skyWorldManager.getWorld();
 
-        int radius = configManager.getStarterPlatformRadius();
+        int radius = configManager
+                .getStarterPlatformRadius();
 
         int y = island.getCenterY();
 
         for (int x = -radius; x <= radius; x++) {
+
             for (int z = -radius; z <= radius; z++) {
 
                 world.getBlockAt(
@@ -79,7 +86,8 @@ public final class IslandCreationService {
                         false);
     }
 
-    public Location getHomeLocation(Island island) {
+    public Location getDefaultHomeLocation(
+            Island island) {
         return new Location(
                 skyWorldManager.getWorld(),
                 island.getCenterX() + 0.5,

@@ -3,12 +3,18 @@ package net.skyfoundry.core;
 import net.skyfoundry.core.command.IslandCommand;
 import net.skyfoundry.core.command.SkyFoundryCommand;
 import net.skyfoundry.core.config.ConfigManager;
+import net.skyfoundry.core.confirmation.IslandConfirmationManager;
 import net.skyfoundry.core.database.DatabaseManager;
+import net.skyfoundry.core.home.IslandHomeRepository;
 import net.skyfoundry.core.invite.IslandInviteManager;
 import net.skyfoundry.core.island.IslandManager;
 import net.skyfoundry.core.island.IslandRepository;
+import net.skyfoundry.core.reset.PlayerResetRepository;
 import net.skyfoundry.core.service.IslandCreationService;
+import net.skyfoundry.core.service.IslandDeletionService;
 import net.skyfoundry.core.service.IslandLocationService;
+import net.skyfoundry.core.service.IslandRegionService;
+import net.skyfoundry.core.service.IslandResetService;
 import net.skyfoundry.core.world.SkyWorldManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -22,20 +28,13 @@ public final class SkyFoundry extends JavaPlugin {
     private DatabaseManager databaseManager;
 
     private SkyWorldManager skyWorldManager;
-
-    private IslandRepository islandRepository;
-    private IslandLocationService islandLocationService;
-    private IslandCreationService islandCreationService;
-    private IslandInviteManager islandInviteManager;
     private IslandManager islandManager;
 
     @Override
     public void onLoad() {
         instance = this;
 
-        getLogger().info(
-                "Loading SkyFoundry..."
-        );
+        getLogger().info("Loading SkyFoundry...");
     }
 
     @Override
@@ -49,15 +48,10 @@ public final class SkyFoundry extends JavaPlugin {
             initializeIslands();
             registerCommands();
 
-            getLogger().info(
-                    "SkyFoundry enabled successfully."
-            );
+            getLogger().info("SkyFoundry enabled successfully.");
 
         } catch (Exception exception) {
-
-            getLogger().severe(
-                    "SkyFoundry failed to enable."
-            );
+            getLogger().severe("SkyFoundry failed to enable.");
 
             exception.printStackTrace();
 
@@ -73,39 +67,30 @@ public final class SkyFoundry extends JavaPlugin {
             databaseManager.close();
         }
 
-        getLogger().info(
-                "SkyFoundry disabled."
-        );
+        getLogger().info("SkyFoundry disabled.");
     }
 
     private void initializeConfiguration() {
-        configManager =
-                new ConfigManager(this);
+        configManager = new ConfigManager(this);
 
         configManager.load();
 
-        getLogger().info(
-                "Configuration loaded."
-        );
+        getLogger().info("Configuration loaded.");
     }
 
     private void initializeDatabase() {
-        databaseManager =
-                new DatabaseManager(this);
+        databaseManager = new DatabaseManager(this);
 
         databaseManager.initialize();
 
-        getLogger().info(
-                "SQLite database initialized."
-        );
+        getLogger().info("SQLite database initialized.");
     }
 
     private void initializeWorld() {
-        skyWorldManager =
-                new SkyWorldManager(
-                        this,
-                        configManager
-                );
+        skyWorldManager = new SkyWorldManager(
+                this,
+                configManager
+        );
 
         skyWorldManager.loadOrCreateWorld();
 
@@ -118,42 +103,86 @@ public final class SkyFoundry extends JavaPlugin {
     }
 
     private void initializeIslands() {
-        islandRepository =
+        IslandRepository islandRepository =
                 new IslandRepository(
                         databaseManager
                 );
 
-        islandLocationService =
+        IslandHomeRepository homeRepository =
+                new IslandHomeRepository(
+                        databaseManager
+                );
+
+        PlayerResetRepository resetRepository =
+                new PlayerResetRepository(
+                        databaseManager
+                );
+
+        IslandLocationService locationService =
                 new IslandLocationService(
                         islandRepository,
                         configManager
                 );
 
-        islandCreationService =
+        IslandCreationService creationService =
                 new IslandCreationService(
                         configManager,
                         skyWorldManager,
                         islandRepository,
-                        islandLocationService
+                        locationService
                 );
 
-        islandInviteManager =
+        IslandInviteManager inviteManager =
                 new IslandInviteManager(
                         configManager
+                );
+
+        IslandConfirmationManager confirmationManager =
+                new IslandConfirmationManager(
+                        configManager
+                );
+
+        IslandRegionService regionService =
+                new IslandRegionService(
+                        this,
+                        configManager,
+                        skyWorldManager
+                );
+
+        IslandDeletionService deletionService =
+                new IslandDeletionService(
+                        islandRepository,
+                        inviteManager,
+                        regionService,
+                        skyWorldManager
+                );
+
+        IslandResetService resetService =
+                new IslandResetService(
+                        islandRepository,
+                        homeRepository,
+                        resetRepository,
+                        creationService,
+                        regionService,
+                        skyWorldManager
                 );
 
         islandManager =
                 new IslandManager(
                         configManager,
                         islandRepository,
-                        islandCreationService,
-                        islandInviteManager,
+                        homeRepository,
+                        resetRepository,
+                        creationService,
+                        inviteManager,
+                        confirmationManager,
+                        regionService,
+                        deletionService,
+                        resetService,
                         skyWorldManager
                 );
 
-        getLogger().info(
-                "Island services initialized."
-        );
+        getLogger().info("Island services initialized.");
     }
 
     private void registerCommands() {
@@ -178,26 +207,16 @@ public final class SkyFoundry extends JavaPlugin {
     }
 
     private void printBanner() {
-        getLogger().info(
-                "================================="
-        );
-
-        getLogger().info(
-                " SkyFoundry"
-        );
+        getLogger().info("=================================");
+        getLogger().info(" SkyFoundry");
 
         getLogger().info(
                 " Version: "
                         + getPluginMeta().getVersion()
         );
 
-        getLogger().info(
-                " Minecraft: 1.21.1"
-        );
-
-        getLogger().info(
-                "================================="
-        );
+        getLogger().info(" Minecraft: 1.21.1");
+        getLogger().info("=================================");
     }
 
     public static SkyFoundry getInstance() {

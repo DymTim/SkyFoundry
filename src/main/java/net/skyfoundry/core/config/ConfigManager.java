@@ -85,10 +85,24 @@ public final class ConfigManager {
                 60);
     }
 
+    public int getConfirmationExpirationSeconds() {
+        return config.getInt(
+                "confirmations.expiration-seconds",
+                30);
+    }
+
     public int getDefaultLifetimeResets() {
         return config.getInt(
                 "reset.default-lifetime-resets",
                 1);
+    }
+
+    public int getRegionClearBlocksPerTick() {
+        return Math.max(
+                1,
+                config.getInt(
+                        "region-clear.blocks-per-tick",
+                        15000));
     }
 
     public boolean isDebugEnabled() {

@@ -18,7 +18,13 @@ members:
 invites:
   expiration-seconds: 60
 
+confirmations:
+  expiration-seconds: 30
+
 reset:
   default-lifetime-resets: 1
+
+region-clear:
+  blocks-per-tick: 15000
 
 debug: false

@@ -1,11 +1,22 @@
 package net.skyfoundry.core.island;
 
 import net.skyfoundry.core.config.ConfigManager;
+import net.skyfoundry.core.confirmation.IslandActionType;
+import net.skyfoundry.core.confirmation.IslandConfirmationManager;
+import net.skyfoundry.core.confirmation.PendingIslandAction;
+import net.skyfoundry.core.home.IslandHome;
+import net.skyfoundry.core.home.IslandHomeRepository;
 import net.skyfoundry.core.invite.IslandInvite;
 import net.skyfoundry.core.invite.IslandInviteManager;
+import net.skyfoundry.core.reset.PlayerResetRepository;
 import net.skyfoundry.core.service.IslandCreationService;
+import net.skyfoundry.core.service.IslandDeletionService;
+import net.skyfoundry.core.service.IslandRegionService;
+import net.skyfoundry.core.service.IslandResetService;
 import net.skyfoundry.core.world.SkyWorldManager;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 
 import java.util.List;
@@ -15,21 +26,42 @@ import java.util.UUID;
 public final class IslandManager {
 
     private final ConfigManager configManager;
+
     private final IslandRepository islandRepository;
-    private final IslandCreationService islandCreationService;
+    private final IslandHomeRepository homeRepository;
+    private final PlayerResetRepository resetRepository;
+
+    private final IslandCreationService creationService;
     private final IslandInviteManager inviteManager;
+    private final IslandConfirmationManager confirmationManager;
+    private final IslandRegionService regionService;
+    private final IslandDeletionService deletionService;
+    private final IslandResetService resetService;
+
     private final SkyWorldManager skyWorldManager;
 
     public IslandManager(
             ConfigManager configManager,
             IslandRepository islandRepository,
-            IslandCreationService islandCreationService,
+            IslandHomeRepository homeRepository,
+            PlayerResetRepository resetRepository,
+            IslandCreationService creationService,
             IslandInviteManager inviteManager,
+            IslandConfirmationManager confirmationManager,
+            IslandRegionService regionService,
+            IslandDeletionService deletionService,
+            IslandResetService resetService,
             SkyWorldManager skyWorldManager) {
         this.configManager = configManager;
         this.islandRepository = islandRepository;
-        this.islandCreationService = islandCreationService;
+        this.homeRepository = homeRepository;
+        this.resetRepository = resetRepository;
+        this.creationService = creationService;
         this.inviteManager = inviteManager;
+        this.confirmationManager = confirmationManager;
+        this.regionService = regionService;
+        this.deletionService = deletionService;
+        this.resetService = resetService;
         this.skyWorldManager = skyWorldManager;
     }
 
@@ -57,26 +89,99 @@ public final class IslandManager {
     }
 
     public Island createIsland(Player player) {
-        if (hasIsland(player.getUniqueId())) {
+        if (hasIsland(
+                player.getUniqueId())) {
+
             throw new IllegalStateException(
-                    "Player already belongs to an island.");
+                    "You already belong to an island.");
         }
 
-        return islandCreationService.createIsland(
+        return creationService.createIsland(
                 player.getUniqueId());
+    }
+
+    public void setHome(Player player) {
+        Island island = requireIsland(
+                player);
+
+        Location location = player.getLocation();
+
+        if (location.getWorld() == null
+                || !location
+                        .getWorld()
+                        .getName()
+                        .equals(
+                                island.getWorldName())) {
+
+            throw new IllegalStateException(
+                    "You must be on your island to set your home.");
+        }
+
+        if (!island.contains(
+                location.getBlockX(),
+                location.getBlockZ())) {
+
+            throw new IllegalStateException(
+                    "Your island home must be inside your island boundary.");
+        }
+
+        homeRepository.saveHome(
+                island.getId(),
+                player.getUniqueId(),
+                location);
+    }
+
+    public void teleportHome(Player player) {
+        Island island = requireIsland(
+                player);
+
+        Optional<IslandHome> customHome = homeRepository.findHome(
+                island.getId(),
+                player.getUniqueId());
+
+        if (customHome.isEmpty()) {
+
+            player.teleport(
+                    creationService
+                            .getDefaultHomeLocation(
+                                    island));
+
+            return;
+        }
+
+        IslandHome home = customHome.get();
+
+        World world = Bukkit.getWorld(
+                home.getWorldName());
+
+        if (world == null) {
+
+            player.teleport(
+                    creationService
+                            .getDefaultHomeLocation(
+                                    island));
+
+            return;
+        }
+
+        player.teleport(
+                new Location(
+                        world,
+                        home.getX(),
+                        home.getY(),
+                        home.getZ(),
+                        home.getYaw(),
+                        home.getPitch()));
     }
 
     public IslandInvite invitePlayer(
             Player inviter,
             Player invited) {
-        Island island = getIsland(
-                inviter.getUniqueId()).orElseThrow(
-                        () -> new IllegalStateException(
-                                "You do not belong to an island."));
+        Island island = requireIsland(
+                inviter);
 
-        IslandMember inviterMember = islandRepository.findMember(
-                island.getId(),
-                inviter.getUniqueId()).orElseThrow();
+        IslandMember inviterMember = requireMember(
+                inviter);
 
         if (!inviterMember
                 .getRole()
@@ -88,6 +193,7 @@ public final class IslandManager {
 
         if (hasIsland(
                 invited.getUniqueId())) {
+
             throw new IllegalStateException(
                     "That player already belongs to an island.");
         }
@@ -105,8 +211,11 @@ public final class IslandManager {
                 invited.getUniqueId());
     }
 
-    public Island acceptInvite(Player player) {
-        if (hasIsland(player.getUniqueId())) {
+    public Island acceptInvite(
+            Player player) {
+        if (hasIsland(
+                player.getUniqueId())) {
+
             throw new IllegalStateException(
                     "You already belong to an island.");
         }
@@ -142,9 +251,11 @@ public final class IslandManager {
         return island;
     }
 
-    public boolean declineInvite(Player player) {
+    public boolean declineInvite(
+            Player player) {
         if (!inviteManager.hasActiveInvite(
                 player.getUniqueId())) {
+
             return false;
         }
 
@@ -154,19 +265,23 @@ public final class IslandManager {
         return true;
     }
 
-    public void leaveIsland(Player player) {
-        Island island = getIsland(
-                player.getUniqueId()).orElseThrow(
-                        () -> new IllegalStateException(
-                                "You do not belong to an island."));
+    public void leaveIsland(
+            Player player) {
+        Island island = requireIsland(
+                player);
 
-        IslandMember member = getMember(
-                player.getUniqueId()).orElseThrow();
+        IslandMember member = requireMember(
+                player);
 
         if (member.getRole() == IslandRole.OWNER) {
+
             throw new IllegalStateException(
                     "The island owner cannot leave. Transfer ownership or delete the island first.");
         }
+
+        homeRepository.deleteHome(
+                island.getId(),
+                player.getUniqueId());
 
         islandRepository.removeMember(
                 island.getId(),
@@ -180,11 +295,11 @@ public final class IslandManager {
                 actor,
                 target);
 
-        IslandMember actorMember = getMember(
-                actor.getUniqueId()).orElseThrow();
+        IslandMember actorMember = requireMember(
+                actor);
 
-        IslandMember targetMember = getMember(
-                target.getUniqueId()).orElseThrow();
+        IslandMember targetMember = requireMember(
+                target);
 
         if (!actorMember
                 .getRole()
@@ -209,9 +324,14 @@ public final class IslandManager {
 
         if (actor.getUniqueId().equals(
                 target.getUniqueId())) {
+
             throw new IllegalStateException(
                     "Use /island leave instead.");
         }
+
+        homeRepository.deleteHome(
+                island.getId(),
+                target.getUniqueId());
 
         islandRepository.removeMember(
                 island.getId(),
@@ -225,11 +345,11 @@ public final class IslandManager {
                 actor,
                 target);
 
-        IslandMember actorMember = getMember(
-                actor.getUniqueId()).orElseThrow();
+        IslandMember actorMember = requireMember(
+                actor);
 
-        IslandMember targetMember = getMember(
-                target.getUniqueId()).orElseThrow();
+        IslandMember targetMember = requireMember(
+                target);
 
         if (!actorMember
                 .getRole()
@@ -264,11 +384,11 @@ public final class IslandManager {
                 actor,
                 target);
 
-        IslandMember actorMember = getMember(
-                actor.getUniqueId()).orElseThrow();
+        IslandMember actorMember = requireMember(
+                actor);
 
-        IslandMember targetMember = getMember(
-                target.getUniqueId()).orElseThrow();
+        IslandMember targetMember = requireMember(
+                target);
 
         if (!actorMember
                 .getRole()
@@ -290,38 +410,185 @@ public final class IslandManager {
                 IslandRole.MEMBER);
     }
 
-    private Island requireSameIsland(
-            Player first,
-            Player second) {
-        Island firstIsland = getIsland(
-                first.getUniqueId()).orElseThrow(
-                        () -> new IllegalStateException(
-                                "You do not belong to an island."));
+    public void requestOwnershipTransfer(
+            Player owner,
+            Player target) {
+        Island island = requireSameIsland(
+                owner,
+                target);
 
-        Island secondIsland = getIsland(
-                second.getUniqueId()).orElseThrow(
-                        () -> new IllegalStateException(
-                                "That player does not belong to an island."));
+        IslandMember member = requireMember(
+                owner);
 
-        if (firstIsland.getId() != secondIsland.getId()) {
+        if (!member
+                .getRole()
+                .canTransferOwnership()) {
 
             throw new IllegalStateException(
-                    "That player is not a member of your island.");
+                    "Only the island owner can transfer ownership.");
         }
 
-        return firstIsland;
+        if (owner.getUniqueId().equals(
+                target.getUniqueId())) {
+
+            throw new IllegalStateException(
+                    "You are already the island owner.");
+        }
+
+        confirmationManager.create(
+                IslandActionType.TRANSFER_OWNERSHIP,
+                island.getId(),
+                owner.getUniqueId(),
+                target.getUniqueId());
     }
 
-    public void teleportHome(Player player) {
-        Island island = getIsland(
+    public void requestDeletion(
+            Player owner) {
+        Island island = requireIsland(
+                owner);
+
+        requireOwner(
+                owner);
+
+        if (regionService.isBusy(
+                island.getId())) {
+
+            throw new IllegalStateException(
+                    "Your island is already being modified.");
+        }
+
+        confirmationManager.create(
+                IslandActionType.DELETE_ISLAND,
+                island.getId(),
+                owner.getUniqueId(),
+                null);
+    }
+
+    public void requestReset(
+            Player owner) {
+        Island island = requireIsland(
+                owner);
+
+        requireOwner(
+                owner);
+
+        if (regionService.isBusy(
+                island.getId())) {
+
+            throw new IllegalStateException(
+                    "Your island is already being modified.");
+        }
+
+        if (getRemainingResets(
+                owner.getUniqueId()) <= 0) {
+
+            throw new IllegalStateException(
+                    "You have no lifetime island resets remaining.");
+        }
+
+        confirmationManager.create(
+                IslandActionType.RESET_ISLAND,
+                island.getId(),
+                owner.getUniqueId(),
+                null);
+    }
+
+    public String confirm(
+            Player player) {
+        PendingIslandAction action = confirmationManager.get(
                 player.getUniqueId()).orElseThrow(
                         () -> new IllegalStateException(
-                                "Player does not belong to an island."));
+                                "You do not have an active island confirmation."));
 
-        Location location = islandCreationService
-                .getHomeLocation(island);
+        confirmationManager.clear(
+                player.getUniqueId());
 
-        player.teleport(location);
+        Island island = islandRepository.findById(
+                action.getIslandId()).orElseThrow(
+                        () -> new IllegalStateException(
+                                "That island no longer exists."));
+
+        if (!island.getOwnerUuid().equals(
+                player.getUniqueId())) {
+
+            throw new IllegalStateException(
+                    "You are no longer the owner of that island.");
+        }
+
+        return switch (action.getType()) {
+
+            case TRANSFER_OWNERSHIP -> {
+                UUID targetUuid = action.getTargetUuid();
+
+                if (targetUuid == null) {
+                    throw new IllegalStateException(
+                            "Ownership transfer target is missing.");
+                }
+
+                islandRepository.findMember(
+                        island.getId(),
+                        targetUuid).orElseThrow(
+                                () -> new IllegalStateException(
+                                        "That player is no longer a member of your island."));
+
+                islandRepository.transferOwnership(
+                        island.getId(),
+                        player.getUniqueId(),
+                        targetUuid);
+
+                Player target = Bukkit.getPlayer(
+                        targetUuid);
+
+                if (target != null) {
+                    target.sendMessage(
+                            "§aYou are now the owner of the island.");
+                }
+
+                yield "§aIsland ownership transferred successfully.";
+            }
+
+            case DELETE_ISLAND -> {
+                deletionService.deleteIsland(
+                        island);
+
+                yield "§eIsland deletion started.";
+            }
+
+            case RESET_ISLAND -> {
+                if (getRemainingResets(
+                        player.getUniqueId()) <= 0) {
+
+                    throw new IllegalStateException(
+                            "You no longer have any lifetime resets remaining.");
+                }
+
+                resetService.resetIsland(
+                        island);
+
+                yield "§eIsland reset started.";
+            }
+        };
+    }
+
+    public boolean cancelConfirmation(
+            Player player) {
+        return confirmationManager.cancel(
+                player.getUniqueId());
+    }
+
+    public int getUsedResets(
+            UUID playerUuid) {
+        return resetRepository.getUsedResets(
+                playerUuid);
+    }
+
+    public int getRemainingResets(
+            UUID playerUuid) {
+        return Math.max(
+                0,
+                configManager.getDefaultLifetimeResets()
+                        - getUsedResets(
+                                playerUuid));
     }
 
     public int getIslandCount() {
@@ -330,5 +597,51 @@ public final class IslandManager {
 
     public SkyWorldManager getSkyWorldManager() {
         return skyWorldManager;
+    }
+
+    private Island requireIsland(
+            Player player) {
+        return getIsland(
+                player.getUniqueId()).orElseThrow(
+                        () -> new IllegalStateException(
+                                "You do not belong to an island."));
+    }
+
+    private IslandMember requireMember(
+            Player player) {
+        return getMember(
+                player.getUniqueId()).orElseThrow(
+                        () -> new IllegalStateException(
+                                "You do not belong to an island."));
+    }
+
+    private void requireOwner(
+            Player player) {
+        IslandMember member = requireMember(
+                player);
+
+        if (member.getRole() != IslandRole.OWNER) {
+
+            throw new IllegalStateException(
+                    "Only the island owner can do that.");
+        }
+    }
+
+    private Island requireSameIsland(
+            Player first,
+            Player second) {
+        Island firstIsland = requireIsland(
+                first);
+
+        Island secondIsland = requireIsland(
+                second);
+
+        if (firstIsland.getId() != secondIsland.getId()) {
+
+            throw new IllegalStateException(
+                    "That player is not a member of your island.");
+        }
+
+        return firstIsland;
     }
 }

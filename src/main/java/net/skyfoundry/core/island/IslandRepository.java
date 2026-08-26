@@ -48,6 +48,7 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not load island " + islandId,
                     exception);
@@ -82,6 +83,7 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not load island for owner "
                             + ownerUuid,
@@ -119,6 +121,7 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not load island membership for "
                             + playerUuid,
@@ -154,6 +157,7 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not load island member "
                             + playerUuid,
@@ -195,6 +199,7 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not load island member.",
                     exception);
@@ -237,6 +242,7 @@ public final class IslandRepository {
             return members;
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not load island members.",
                     exception);
@@ -269,6 +275,7 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not count island members.",
                     exception);
@@ -312,6 +319,7 @@ public final class IslandRepository {
             statement.executeUpdate();
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not add island member.",
                     exception);
@@ -342,6 +350,7 @@ public final class IslandRepository {
             statement.executeUpdate();
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not remove island member.",
                     exception);
@@ -378,8 +387,143 @@ public final class IslandRepository {
             statement.executeUpdate();
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not update island role.",
+                    exception);
+        }
+    }
+
+    public void transferOwnership(
+            long islandId,
+            UUID oldOwnerUuid,
+            UUID newOwnerUuid) {
+        Connection connection = databaseManager.getConnection();
+
+        try {
+            connection.setAutoCommit(false);
+
+            String updateIsland = """
+                    UPDATE islands
+                    SET owner_uuid = ?
+                    WHERE id = ?
+                      AND owner_uuid = ?;
+                    """;
+
+            String demoteOldOwner = """
+                    UPDATE island_members
+                    SET role = ?
+                    WHERE island_id = ?
+                      AND player_uuid = ?;
+                    """;
+
+            String promoteNewOwner = """
+                    UPDATE island_members
+                    SET role = ?
+                    WHERE island_id = ?
+                      AND player_uuid = ?;
+                    """;
+
+            try (
+                    PreparedStatement islandStatement = connection.prepareStatement(
+                            updateIsland);
+
+                    PreparedStatement oldOwnerStatement = connection.prepareStatement(
+                            demoteOldOwner);
+
+                    PreparedStatement newOwnerStatement = connection.prepareStatement(
+                            promoteNewOwner)) {
+
+                islandStatement.setString(
+                        1,
+                        newOwnerUuid.toString());
+
+                islandStatement.setLong(
+                        2,
+                        islandId);
+
+                islandStatement.setString(
+                        3,
+                        oldOwnerUuid.toString());
+
+                if (islandStatement.executeUpdate() != 1) {
+
+                    throw new SQLException(
+                            "Could not update island owner.");
+                }
+
+                oldOwnerStatement.setString(
+                        1,
+                        IslandRole.CO_OWNER.name());
+
+                oldOwnerStatement.setLong(
+                        2,
+                        islandId);
+
+                oldOwnerStatement.setString(
+                        3,
+                        oldOwnerUuid.toString());
+
+                oldOwnerStatement.executeUpdate();
+
+                newOwnerStatement.setString(
+                        1,
+                        IslandRole.OWNER.name());
+
+                newOwnerStatement.setLong(
+                        2,
+                        islandId);
+
+                newOwnerStatement.setString(
+                        3,
+                        newOwnerUuid.toString());
+
+                if (newOwnerStatement.executeUpdate() != 1) {
+
+                    throw new SQLException(
+                            "Could not promote new owner.");
+                }
+
+                connection.commit();
+
+            } catch (SQLException exception) {
+
+                connection.rollback();
+                throw exception;
+
+            } finally {
+
+                connection.setAutoCommit(true);
+            }
+
+        } catch (SQLException exception) {
+
+            throw new IllegalStateException(
+                    "Could not transfer island ownership.",
+                    exception);
+        }
+    }
+
+    public void deleteIsland(long islandId) {
+        String sql = """
+                DELETE FROM islands
+                WHERE id = ?;
+                """;
+
+        try (PreparedStatement statement = databaseManager
+                .getConnection()
+                .prepareStatement(sql)) {
+
+            statement.setLong(
+                    1,
+                    islandId);
+
+            statement.executeUpdate();
+
+        } catch (SQLException exception) {
+
+            throw new IllegalStateException(
+                    "Could not delete island.",
                     exception);
         }
     }
@@ -482,15 +626,17 @@ public final class IslandRepository {
                         createdAt);
 
             } catch (SQLException exception) {
-                connection.rollback();
 
+                connection.rollback();
                 throw exception;
 
             } finally {
+
                 connection.setAutoCommit(true);
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not create island.",
                     exception);
@@ -556,6 +702,7 @@ public final class IslandRepository {
             return 0;
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not calculate next island slot.",
                     exception);
@@ -583,6 +730,7 @@ public final class IslandRepository {
             return 0;
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not count islands.",
                     exception);

@@ -16,8 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
-public final class IslandCommand
-        implements CommandExecutor {
+public final class IslandCommand implements CommandExecutor {
 
     private final IslandManager islandManager;
 
@@ -33,7 +32,6 @@ public final class IslandCommand
             @NotNull String label,
             @NotNull String[] args) {
         if (!(sender instanceof Player player)) {
-
             sender.sendMessage(
                     "This command can only be used by players.");
 
@@ -55,6 +53,9 @@ public final class IslandCommand
 
             case "home" ->
                 home(player);
+
+            case "sethome" ->
+                setHome(player);
 
             case "info" ->
                 info(player);
@@ -83,6 +84,24 @@ public final class IslandCommand
             case "demote" ->
                 demote(player, args);
 
+            case "transfer" ->
+                transfer(player, args);
+
+            case "delete" ->
+                deleteIsland(player);
+
+            case "reset" ->
+                resetIsland(player);
+
+            case "resets" ->
+                resets(player);
+
+            case "confirm" ->
+                confirm(player);
+
+            case "cancel" ->
+                cancel(player);
+
             default ->
                 sendHelp(player);
         }
@@ -90,7 +109,8 @@ public final class IslandCommand
         return true;
     }
 
-    private void createIsland(Player player) {
+    private void createIsland(
+            Player player) {
         if (islandManager.hasIsland(
                 player.getUniqueId())) {
 
@@ -127,13 +147,14 @@ public final class IslandCommand
         }
     }
 
-    private void home(Player player) {
+    private void home(
+            Player player) {
         try {
             islandManager.teleportHome(
                     player);
 
             player.sendMessage(
-                    "§aTeleported to your island.");
+                    "§aTeleported to your island home.");
 
         } catch (Exception exception) {
 
@@ -143,7 +164,25 @@ public final class IslandCommand
         }
     }
 
-    private void info(Player player) {
+    private void setHome(
+            Player player) {
+        try {
+            islandManager.setHome(
+                    player);
+
+            player.sendMessage(
+                    "§aYour island home has been updated.");
+
+        } catch (Exception exception) {
+
+            sendException(
+                    player,
+                    exception);
+        }
+    }
+
+    private void info(
+            Player player) {
         Optional<Island> optionalIsland = islandManager.getIsland(
                 player.getUniqueId());
 
@@ -186,9 +225,16 @@ public final class IslandCommand
                         + islandManager
                                 .getMembers(island)
                                 .size());
+
+        player.sendMessage(
+                "§7Lifetime resets remaining: §f"
+                        + islandManager
+                                .getRemainingResets(
+                                        island.getOwnerUuid()));
     }
 
-    private void members(Player player) {
+    private void members(
+            Player player) {
         Optional<Island> optionalIsland = islandManager.getIsland(
                 player.getUniqueId());
 
@@ -214,7 +260,8 @@ public final class IslandCommand
             String name = offlinePlayer.getName();
 
             if (name == null) {
-                name = member.getPlayerUuid()
+                name = member
+                        .getPlayerUuid()
                         .toString();
             }
 
@@ -250,8 +297,10 @@ public final class IslandCommand
             return;
         }
 
-        if (target.getUniqueId().equals(
-                player.getUniqueId())) {
+        if (target
+                .getUniqueId()
+                .equals(
+                        player.getUniqueId())) {
 
             player.sendMessage(
                     "§cYou cannot invite yourself.");
@@ -283,8 +332,7 @@ public final class IslandCommand
             long seconds = Math.max(
                     0,
                     (invite.getExpiresAt()
-                            - System.currentTimeMillis())
-                            / 1000);
+                            - System.currentTimeMillis()) / 1000);
 
             target.sendMessage(
                     "§7Expires in approximately §f"
@@ -299,7 +347,8 @@ public final class IslandCommand
         }
     }
 
-    private void accept(Player player) {
+    private void accept(
+            Player player) {
         try {
             Island island = islandManager.acceptInvite(
                     player);
@@ -325,7 +374,8 @@ public final class IslandCommand
         }
     }
 
-    private void decline(Player player) {
+    private void decline(
+            Player player) {
         if (!islandManager.declineInvite(
                 player)) {
 
@@ -339,7 +389,8 @@ public final class IslandCommand
                 "§7Island invitation declined.");
     }
 
-    private void leave(Player player) {
+    private void leave(
+            Player player) {
         Optional<Island> island = islandManager.getIsland(
                 player.getUniqueId());
 
@@ -465,6 +516,154 @@ public final class IslandCommand
         }
     }
 
+    private void transfer(
+            Player player,
+            String[] args) {
+        Player target = requireOnlineTarget(
+                player,
+                args,
+                "transfer");
+
+        if (target == null) {
+            return;
+        }
+
+        try {
+            islandManager.requestOwnershipTransfer(
+                    player,
+                    target);
+
+            player.sendMessage(
+                    "§eYou are about to transfer island ownership to §f"
+                            + target.getName()
+                            + "§e.");
+
+            player.sendMessage(
+                    "§cThis will make you a Co-Owner.");
+
+            player.sendMessage(
+                    "§eUse §f/island confirm §eto continue or §f/island cancel §eto cancel.");
+
+        } catch (Exception exception) {
+
+            sendException(
+                    player,
+                    exception);
+        }
+    }
+
+    private void deleteIsland(
+            Player player) {
+        try {
+            islandManager.requestDeletion(
+                    player);
+
+            player.sendMessage(
+                    "§c§lWARNING");
+
+            player.sendMessage(
+                    "§cThis will permanently delete your island and everything inside it.");
+
+            player.sendMessage(
+                    "§cThis action cannot be undone.");
+
+            player.sendMessage(
+                    "§eUse §f/island confirm §eto continue or §f/island cancel §eto cancel.");
+
+        } catch (Exception exception) {
+
+            sendException(
+                    player,
+                    exception);
+        }
+    }
+
+    private void resetIsland(
+            Player player) {
+        try {
+            int remaining = islandManager.getRemainingResets(
+                    player.getUniqueId());
+
+            islandManager.requestReset(
+                    player);
+
+            player.sendMessage(
+                    "§6§lISLAND RESET");
+
+            player.sendMessage(
+                    "§eThis will erase all blocks and entities on your island.");
+
+            player.sendMessage(
+                    "§7Your members and island ownership will remain.");
+
+            player.sendMessage(
+                    "§7Lifetime resets remaining before reset: §f"
+                            + remaining);
+
+            player.sendMessage(
+                    "§eUse §f/island confirm §eto continue or §f/island cancel §eto cancel.");
+
+        } catch (Exception exception) {
+
+            sendException(
+                    player,
+                    exception);
+        }
+    }
+
+    private void resets(
+            Player player) {
+        int used = islandManager.getUsedResets(
+                player.getUniqueId());
+
+        int remaining = islandManager.getRemainingResets(
+                player.getUniqueId());
+
+        player.sendMessage(
+                "§6§lISLAND RESETS");
+
+        player.sendMessage(
+                "§7Used: §f"
+                        + used);
+
+        player.sendMessage(
+                "§7Remaining: §f"
+                        + remaining);
+    }
+
+    private void confirm(
+            Player player) {
+        try {
+            String message = islandManager.confirm(
+                    player);
+
+            player.sendMessage(
+                    message);
+
+        } catch (Exception exception) {
+
+            sendException(
+                    player,
+                    exception);
+        }
+    }
+
+    private void cancel(
+            Player player) {
+        if (!islandManager
+                .cancelConfirmation(
+                        player)) {
+
+            player.sendMessage(
+                    "§cYou do not have an active island confirmation.");
+
+            return;
+        }
+
+        player.sendMessage(
+                "§7Island action cancelled.");
+    }
+
     private Player requireOnlineTarget(
             Player sender,
             String[] args,
@@ -497,7 +696,8 @@ public final class IslandCommand
             Island island,
             String message,
             Player except) {
-        for (IslandMember member : islandManager.getMembers(island)) {
+        for (IslandMember member : islandManager.getMembers(
+                island)) {
 
             Player online = Bukkit.getPlayer(
                     member.getPlayerUuid());
@@ -507,7 +707,8 @@ public final class IslandCommand
             }
 
             if (except != null
-                    && online.getUniqueId()
+                    && online
+                            .getUniqueId()
                             .equals(
                                     except.getUniqueId())) {
 
@@ -534,7 +735,8 @@ public final class IslandCommand
                 "§c" + message);
     }
 
-    private void sendHelp(Player player) {
+    private void sendHelp(
+            Player player) {
         player.sendMessage(
                 "§6§lSKYFOUNDRY");
 
@@ -542,7 +744,10 @@ public final class IslandCommand
                 "§e/island create §7- Create your island");
 
         player.sendMessage(
-                "§e/island home §7- Return home");
+                "§e/island home §7- Return to your island home");
+
+        player.sendMessage(
+                "§e/island sethome §7- Set your personal island home");
 
         player.sendMessage(
                 "§e/island info §7- View island information");
@@ -570,5 +775,23 @@ public final class IslandCommand
 
         player.sendMessage(
                 "§e/island demote <player> §7- Demote a Co-Owner");
+
+        player.sendMessage(
+                "§e/island transfer <player> §7- Transfer ownership");
+
+        player.sendMessage(
+                "§e/island reset §7- Reset your island");
+
+        player.sendMessage(
+                "§e/island resets §7- View lifetime reset usage");
+
+        player.sendMessage(
+                "§e/island delete §7- Permanently delete your island");
+
+        player.sendMessage(
+                "§e/island confirm §7- Confirm a pending action");
+
+        player.sendMessage(
+                "§e/island cancel §7- Cancel a pending action");
     }
 }

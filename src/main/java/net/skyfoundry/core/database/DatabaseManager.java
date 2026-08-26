@@ -32,16 +32,22 @@ public final class DatabaseManager {
                     "skyfoundry.db");
 
             connection = DriverManager.getConnection(
-                    "jdbc:sqlite:" + databaseFile.getAbsolutePath());
+                    "jdbc:sqlite:"
+                            + databaseFile.getAbsolutePath());
 
             try (Statement statement = connection.createStatement()) {
-                statement.execute("PRAGMA foreign_keys = ON;");
-                statement.execute("PRAGMA journal_mode = WAL;");
+
+                statement.execute(
+                        "PRAGMA foreign_keys = ON;");
+
+                statement.execute(
+                        "PRAGMA journal_mode = WAL;");
             }
 
             createTables();
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not initialize SQLite database.",
                     exception);
@@ -49,6 +55,7 @@ public final class DatabaseManager {
     }
 
     private void createTables() throws SQLException {
+
         String islandsTable = """
                 CREATE TABLE IF NOT EXISTS islands (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,15 +85,53 @@ public final class DatabaseManager {
                 );
                 """;
 
+        String homesTable = """
+                CREATE TABLE IF NOT EXISTS island_member_homes (
+                    island_id INTEGER NOT NULL,
+                    player_uuid TEXT NOT NULL,
+                    world_name TEXT NOT NULL,
+                    x REAL NOT NULL,
+                    y REAL NOT NULL,
+                    z REAL NOT NULL,
+                    yaw REAL NOT NULL,
+                    pitch REAL NOT NULL,
+
+                    PRIMARY KEY (island_id, player_uuid),
+
+                    FOREIGN KEY (island_id)
+                        REFERENCES islands(id)
+                        ON DELETE CASCADE
+                );
+                """;
+
+        String resetUsageTable = """
+                CREATE TABLE IF NOT EXISTS player_reset_usage (
+                    player_uuid TEXT PRIMARY KEY,
+                    resets_used INTEGER NOT NULL DEFAULT 0
+                );
+                """;
+
+        String uniqueMembershipIndex = """
+                CREATE UNIQUE INDEX IF NOT EXISTS
+                idx_island_members_player
+                ON island_members(player_uuid);
+                """;
+
         try (Statement statement = connection.createStatement()) {
+
             statement.execute(islandsTable);
             statement.execute(membersTable);
+            statement.execute(homesTable);
+            statement.execute(resetUsageTable);
+            statement.execute(uniqueMembershipIndex);
         }
     }
 
     public Connection getConnection() {
         try {
-            if (connection == null || connection.isClosed()) {
+            if (connection == null
+                    || connection.isClosed()) {
+
                 throw new IllegalStateException(
                         "Database connection is not available.");
             }
@@ -94,6 +139,7 @@ public final class DatabaseManager {
             return connection;
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not check database connection.",
                     exception);
@@ -109,7 +155,9 @@ public final class DatabaseManager {
             if (!connection.isClosed()) {
                 connection.close();
             }
+
         } catch (SQLException exception) {
+
             plugin.getLogger().warning(
                     "Could not cleanly close SQLite connection.");
 
