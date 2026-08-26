@@ -1,0 +1,79 @@
+# ==============================
+# SkyFoundry .gitignore
+# ==============================
+
+# Gradle
+.gradle/
+build/
+out/
+bin/
+
+# Compiled Java
+*.class
+
+# Packaged builds
+*.jar
+*.war
+*.zip
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VS Code
+.vscode/
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# Server / development runtime
+run/
+server/
+logs/
+plugins/
+/world/
+world_nether/
+world_the_end/
+skyfoundry_islands/
+
+# Runtime databases
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Runtime logs
+*.log
+logs/
+
+# Crash reports
+crash-reports/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# Operating system
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment / secrets
+.env
+.env.*
+*.key
+*.pem
+
+# Keep Gradle Wrapper
+!gradlew
+!gradlew.bat
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties

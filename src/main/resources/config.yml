@@ -1,0 +1,22 @@
+world:
+  name: skyfoundry_islands
+
+islands:
+  starting-size: 50
+  maximum-size: 300
+  size-upgrade-amount: 50
+
+  spacing: 500
+
+  starter-platform:
+    enabled: true
+    y: 100
+    radius: 2
+
+members:
+  default-limit: 5
+
+reset:
+  default-lifetime-resets: 1
+
+debug: false
