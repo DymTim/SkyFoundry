@@ -4,6 +4,7 @@ import net.skyfoundry.core.command.IslandCommand;
 import net.skyfoundry.core.command.SkyFoundryCommand;
 import net.skyfoundry.core.config.ConfigManager;
 import net.skyfoundry.core.database.DatabaseManager;
+import net.skyfoundry.core.invite.IslandInviteManager;
 import net.skyfoundry.core.island.IslandManager;
 import net.skyfoundry.core.island.IslandRepository;
 import net.skyfoundry.core.service.IslandCreationService;
@@ -25,13 +26,16 @@ public final class SkyFoundry extends JavaPlugin {
     private IslandRepository islandRepository;
     private IslandLocationService islandLocationService;
     private IslandCreationService islandCreationService;
+    private IslandInviteManager islandInviteManager;
     private IslandManager islandManager;
 
     @Override
     public void onLoad() {
         instance = this;
 
-        getLogger().info("Loading SkyFoundry...");
+        getLogger().info(
+                "Loading SkyFoundry..."
+        );
     }
 
     @Override
@@ -45,12 +49,21 @@ public final class SkyFoundry extends JavaPlugin {
             initializeIslands();
             registerCommands();
 
-            getLogger().info("SkyFoundry enabled successfully.");
+            getLogger().info(
+                    "SkyFoundry enabled successfully."
+            );
+
         } catch (Exception exception) {
-            getLogger().severe("SkyFoundry failed to enable.");
+
+            getLogger().severe(
+                    "SkyFoundry failed to enable."
+            );
+
             exception.printStackTrace();
 
-            getServer().getPluginManager().disablePlugin(this);
+            getServer()
+                    .getPluginManager()
+                    .disablePlugin(this);
         }
     }
 
@@ -60,69 +73,131 @@ public final class SkyFoundry extends JavaPlugin {
             databaseManager.close();
         }
 
-        getLogger().info("SkyFoundry disabled.");
+        getLogger().info(
+                "SkyFoundry disabled."
+        );
     }
 
     private void initializeConfiguration() {
-        configManager = new ConfigManager(this);
+        configManager =
+                new ConfigManager(this);
+
         configManager.load();
 
-        getLogger().info("Configuration loaded.");
+        getLogger().info(
+                "Configuration loaded."
+        );
     }
 
     private void initializeDatabase() {
-        databaseManager = new DatabaseManager(this);
+        databaseManager =
+                new DatabaseManager(this);
+
         databaseManager.initialize();
 
-        getLogger().info("SQLite database initialized.");
+        getLogger().info(
+                "SQLite database initialized."
+        );
     }
 
     private void initializeWorld() {
-        skyWorldManager = new SkyWorldManager(this, configManager);
+        skyWorldManager =
+                new SkyWorldManager(
+                        this,
+                        configManager
+                );
+
         skyWorldManager.loadOrCreateWorld();
 
         getLogger().info(
                 "Island world loaded: "
-                        + skyWorldManager.getWorld().getName());
+                        + skyWorldManager
+                        .getWorld()
+                        .getName()
+        );
     }
 
     private void initializeIslands() {
-        islandRepository = new IslandRepository(databaseManager);
+        islandRepository =
+                new IslandRepository(
+                        databaseManager
+                );
 
-        islandLocationService = new IslandLocationService(
-                islandRepository,
-                configManager);
+        islandLocationService =
+                new IslandLocationService(
+                        islandRepository,
+                        configManager
+                );
 
-        islandCreationService = new IslandCreationService(
-                configManager,
-                skyWorldManager,
-                islandRepository,
-                islandLocationService);
+        islandCreationService =
+                new IslandCreationService(
+                        configManager,
+                        skyWorldManager,
+                        islandRepository,
+                        islandLocationService
+                );
 
-        islandManager = new IslandManager(
-                islandRepository,
-                islandCreationService,
-                skyWorldManager);
+        islandInviteManager =
+                new IslandInviteManager(
+                        configManager
+                );
 
-        getLogger().info("Island services initialized.");
+        islandManager =
+                new IslandManager(
+                        configManager,
+                        islandRepository,
+                        islandCreationService,
+                        islandInviteManager,
+                        skyWorldManager
+                );
+
+        getLogger().info(
+                "Island services initialized."
+        );
     }
 
     private void registerCommands() {
         Objects.requireNonNull(
                 getCommand("island"),
-                "island command missing from plugin.yml").setExecutor(new IslandCommand(islandManager));
+                "island command missing from plugin.yml"
+        ).setExecutor(
+                new IslandCommand(
+                        islandManager
+                )
+        );
 
         Objects.requireNonNull(
                 getCommand("skyfoundry"),
-                "skyfoundry command missing from plugin.yml").setExecutor(new SkyFoundryCommand(this, islandManager));
+                "skyfoundry command missing from plugin.yml"
+        ).setExecutor(
+                new SkyFoundryCommand(
+                        this,
+                        islandManager
+                )
+        );
     }
 
     private void printBanner() {
-        getLogger().info("=================================");
-        getLogger().info(" SkyFoundry");
-        getLogger().info(" Version: " + getPluginMeta().getVersion());
-        getLogger().info(" Minecraft: 1.21.1");
-        getLogger().info("=================================");
+        getLogger().info(
+                "================================="
+        );
+
+        getLogger().info(
+                " SkyFoundry"
+        );
+
+        getLogger().info(
+                " Version: "
+                        + getPluginMeta().getVersion()
+        );
+
+        getLogger().info(
+                " Minecraft: 1.21.1"
+        );
+
+        getLogger().info(
+                "================================="
+        );
     }
 
     public static SkyFoundry getInstance() {

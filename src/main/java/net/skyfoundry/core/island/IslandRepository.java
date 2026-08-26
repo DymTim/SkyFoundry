@@ -7,6 +7,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,11 +16,46 @@ public final class IslandRepository {
 
     private final DatabaseManager databaseManager;
 
-    public IslandRepository(DatabaseManager databaseManager) {
+    public IslandRepository(
+            DatabaseManager databaseManager) {
         this.databaseManager = databaseManager;
     }
 
-    public Optional<Island> findByOwner(UUID ownerUuid) {
+    public Optional<Island> findById(long islandId) {
+        String sql = """
+                SELECT *
+                FROM islands
+                WHERE id = ?
+                LIMIT 1;
+                """;
+
+        try (PreparedStatement statement = databaseManager
+                .getConnection()
+                .prepareStatement(sql)) {
+
+            statement.setLong(
+                    1,
+                    islandId);
+
+            try (ResultSet results = statement.executeQuery()) {
+
+                if (!results.next()) {
+                    return Optional.empty();
+                }
+
+                return Optional.of(
+                        readIsland(results));
+            }
+
+        } catch (SQLException exception) {
+            throw new IllegalStateException(
+                    "Could not load island " + islandId,
+                    exception);
+        }
+    }
+
+    public Optional<Island> findByOwner(
+            UUID ownerUuid) {
         String sql = """
                 SELECT *
                 FROM islands
@@ -26,26 +63,34 @@ public final class IslandRepository {
                 LIMIT 1;
                 """;
 
-        try (PreparedStatement statement = databaseManager.getConnection().prepareStatement(sql)) {
+        try (PreparedStatement statement = databaseManager
+                .getConnection()
+                .prepareStatement(sql)) {
 
-            statement.setString(1, ownerUuid.toString());
+            statement.setString(
+                    1,
+                    ownerUuid.toString());
 
             try (ResultSet results = statement.executeQuery()) {
+
                 if (!results.next()) {
                     return Optional.empty();
                 }
 
-                return Optional.of(readIsland(results));
+                return Optional.of(
+                        readIsland(results));
             }
 
         } catch (SQLException exception) {
             throw new IllegalStateException(
-                    "Could not load island for owner " + ownerUuid,
+                    "Could not load island for owner "
+                            + ownerUuid,
                     exception);
         }
     }
 
-    public Optional<Island> findByMember(UUID playerUuid) {
+    public Optional<Island> findByMember(
+            UUID playerUuid) {
         String sql = """
                 SELECT islands.*
                 FROM islands
@@ -55,21 +100,286 @@ public final class IslandRepository {
                 LIMIT 1;
                 """;
 
-        try (PreparedStatement statement = databaseManager.getConnection().prepareStatement(sql)) {
+        try (PreparedStatement statement = databaseManager
+                .getConnection()
+                .prepareStatement(sql)) {
 
-            statement.setString(1, playerUuid.toString());
+            statement.setString(
+                    1,
+                    playerUuid.toString());
 
             try (ResultSet results = statement.executeQuery()) {
+
                 if (!results.next()) {
                     return Optional.empty();
                 }
 
-                return Optional.of(readIsland(results));
+                return Optional.of(
+                        readIsland(results));
             }
 
         } catch (SQLException exception) {
             throw new IllegalStateException(
-                    "Could not load island membership for " + playerUuid,
+                    "Could not load island membership for "
+                            + playerUuid,
+                    exception);
+        }
+    }
+
+    public Optional<IslandMember> findMember(
+            UUID playerUuid) {
+        String sql = """
+                SELECT *
+                FROM island_members
+                WHERE player_uuid = ?
+                LIMIT 1;
+                """;
+
+        try (PreparedStatement statement = databaseManager
+                .getConnection()
+                .prepareStatement(sql)) {
+
+            statement.setString(
+                    1,
+                    playerUuid.toString());
+
+            try (ResultSet results = statement.executeQuery()) {
+
+                if (!results.next()) {
+                    return Optional.empty();
+                }
+
+                return Optional.of(
+                        readMember(results));
+            }
+
+        } catch (SQLException exception) {
+            throw new IllegalStateException(
+                    "Could not load island member "
+                            + playerUuid,
+                    exception);
+        }
+    }
+
+    public Optional<IslandMember> findMember(
+            long islandId,
+            UUID playerUuid) {
+        String sql = """
+                SELECT *
+                FROM island_members
+                WHERE island_id = ?
+                  AND player_uuid = ?
+                LIMIT 1;
+                """;
+
+        try (PreparedStatement statement = databaseManager
+                .getConnection()
+                .prepareStatement(sql)) {
+
+            statement.setLong(
+                    1,
+                    islandId);
+
+            statement.setString(
+                    2,
+                    playerUuid.toString());
+
+            try (ResultSet results = statement.executeQuery()) {
+
+                if (!results.next()) {
+                    return Optional.empty();
+                }
+
+                return Optional.of(
+                        readMember(results));
+            }
+
+        } catch (SQLException exception) {
+            throw new IllegalStateException(
+                    "Could not load island member.",
+                    exception);
+        }
+    }
+
+    public List<IslandMember> getMembers(
+            long islandId) {
+        String sql = """
+                SELECT *
+                FROM island_members
+                WHERE island_id = ?
+                ORDER BY
+                    CASE role
+                        WHEN 'OWNER' THEN 1
+                        WHEN 'CO_OWNER' THEN 2
+                        ELSE 3
+                    END,
+                    joined_at ASC;
+                """;
+
+        List<IslandMember> members = new ArrayList<>();
+
+        try (PreparedStatement statement = databaseManager
+                .getConnection()
+                .prepareStatement(sql)) {
+
+            statement.setLong(
+                    1,
+                    islandId);
+
+            try (ResultSet results = statement.executeQuery()) {
+
+                while (results.next()) {
+                    members.add(
+                            readMember(results));
+                }
+            }
+
+            return members;
+
+        } catch (SQLException exception) {
+            throw new IllegalStateException(
+                    "Could not load island members.",
+                    exception);
+        }
+    }
+
+    public int countMembers(long islandId) {
+        String sql = """
+                SELECT COUNT(*) AS member_count
+                FROM island_members
+                WHERE island_id = ?;
+                """;
+
+        try (PreparedStatement statement = databaseManager
+                .getConnection()
+                .prepareStatement(sql)) {
+
+            statement.setLong(
+                    1,
+                    islandId);
+
+            try (ResultSet results = statement.executeQuery()) {
+
+                if (results.next()) {
+                    return results.getInt(
+                            "member_count");
+                }
+
+                return 0;
+            }
+
+        } catch (SQLException exception) {
+            throw new IllegalStateException(
+                    "Could not count island members.",
+                    exception);
+        }
+    }
+
+    public void addMember(
+            long islandId,
+            UUID playerUuid,
+            IslandRole role) {
+        String sql = """
+                INSERT INTO island_members (
+                    island_id,
+                    player_uuid,
+                    role,
+                    joined_at
+                )
+                VALUES (?, ?, ?, ?);
+                """;
+
+        try (PreparedStatement statement = databaseManager
+                .getConnection()
+                .prepareStatement(sql)) {
+
+            statement.setLong(
+                    1,
+                    islandId);
+
+            statement.setString(
+                    2,
+                    playerUuid.toString());
+
+            statement.setString(
+                    3,
+                    role.name());
+
+            statement.setLong(
+                    4,
+                    System.currentTimeMillis());
+
+            statement.executeUpdate();
+
+        } catch (SQLException exception) {
+            throw new IllegalStateException(
+                    "Could not add island member.",
+                    exception);
+        }
+    }
+
+    public void removeMember(
+            long islandId,
+            UUID playerUuid) {
+        String sql = """
+                DELETE FROM island_members
+                WHERE island_id = ?
+                  AND player_uuid = ?;
+                """;
+
+        try (PreparedStatement statement = databaseManager
+                .getConnection()
+                .prepareStatement(sql)) {
+
+            statement.setLong(
+                    1,
+                    islandId);
+
+            statement.setString(
+                    2,
+                    playerUuid.toString());
+
+            statement.executeUpdate();
+
+        } catch (SQLException exception) {
+            throw new IllegalStateException(
+                    "Could not remove island member.",
+                    exception);
+        }
+    }
+
+    public void updateRole(
+            long islandId,
+            UUID playerUuid,
+            IslandRole role) {
+        String sql = """
+                UPDATE island_members
+                SET role = ?
+                WHERE island_id = ?
+                  AND player_uuid = ?;
+                """;
+
+        try (PreparedStatement statement = databaseManager
+                .getConnection()
+                .prepareStatement(sql)) {
+
+            statement.setString(
+                    1,
+                    role.name());
+
+            statement.setLong(
+                    2,
+                    islandId);
+
+            statement.setString(
+                    3,
+                    playerUuid.toString());
+
+            statement.executeUpdate();
+
+        } catch (SQLException exception) {
+            throw new IllegalStateException(
+                    "Could not update island role.",
                     exception);
         }
     }
@@ -107,20 +417,44 @@ public final class IslandRepository {
                     sql,
                     Statement.RETURN_GENERATED_KEYS)) {
 
-                statement.setString(1, ownerUuid.toString());
-                statement.setString(2, worldName);
-                statement.setInt(3, centerX);
-                statement.setInt(4, centerY);
-                statement.setInt(5, centerZ);
-                statement.setInt(6, size);
-                statement.setInt(7, slotIndex);
-                statement.setLong(8, createdAt);
+                statement.setString(
+                        1,
+                        ownerUuid.toString());
+
+                statement.setString(
+                        2,
+                        worldName);
+
+                statement.setInt(
+                        3,
+                        centerX);
+
+                statement.setInt(
+                        4,
+                        centerY);
+
+                statement.setInt(
+                        5,
+                        centerZ);
+
+                statement.setInt(
+                        6,
+                        size);
+
+                statement.setInt(
+                        7,
+                        slotIndex);
+
+                statement.setLong(
+                        8,
+                        createdAt);
 
                 statement.executeUpdate();
 
                 long islandId;
 
                 try (ResultSet keys = statement.getGeneratedKeys()) {
+
                     if (!keys.next()) {
                         throw new SQLException(
                                 "Island insert did not return an ID.");
@@ -129,7 +463,10 @@ public final class IslandRepository {
                     islandId = keys.getLong(1);
                 }
 
-                addOwnerMember(connection, islandId, ownerUuid);
+                addOwnerMember(
+                        connection,
+                        islandId,
+                        ownerUuid);
 
                 connection.commit();
 
@@ -146,7 +483,9 @@ public final class IslandRepository {
 
             } catch (SQLException exception) {
                 connection.rollback();
+
                 throw exception;
+
             } finally {
                 connection.setAutoCommit(true);
             }
@@ -175,10 +514,21 @@ public final class IslandRepository {
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setLong(1, islandId);
-            statement.setString(2, ownerUuid.toString());
-            statement.setString(3, IslandRole.OWNER.name());
-            statement.setLong(4, System.currentTimeMillis());
+            statement.setLong(
+                    1,
+                    islandId);
+
+            statement.setString(
+                    2,
+                    ownerUuid.toString());
+
+            statement.setString(
+                    3,
+                    IslandRole.OWNER.name());
+
+            statement.setLong(
+                    4,
+                    System.currentTimeMillis());
 
             statement.executeUpdate();
         }
@@ -192,12 +542,15 @@ public final class IslandRepository {
                 """;
 
         try (
-                Statement statement = databaseManager.getConnection().createStatement();
+                Statement statement = databaseManager
+                        .getConnection()
+                        .createStatement();
 
                 ResultSet results = statement.executeQuery(sql)) {
 
             if (results.next()) {
-                return results.getInt("next_slot");
+                return results.getInt(
+                        "next_slot");
             }
 
             return 0;
@@ -211,18 +564,20 @@ public final class IslandRepository {
 
     public int countIslands() {
         String sql = """
-                SELECT COUNT(*)
-                AS island_count
+                SELECT COUNT(*) AS island_count
                 FROM islands;
                 """;
 
         try (
-                Statement statement = databaseManager.getConnection().createStatement();
+                Statement statement = databaseManager
+                        .getConnection()
+                        .createStatement();
 
                 ResultSet results = statement.executeQuery(sql)) {
 
             if (results.next()) {
-                return results.getInt("island_count");
+                return results.getInt(
+                        "island_count");
             }
 
             return 0;
@@ -234,19 +589,43 @@ public final class IslandRepository {
         }
     }
 
-    private Island readIsland(ResultSet results)
-            throws SQLException {
+    private Island readIsland(
+            ResultSet results) throws SQLException {
 
         return new Island(
                 results.getLong("id"),
                 UUID.fromString(
-                        results.getString("owner_uuid")),
-                results.getString("world_name"),
-                results.getInt("center_x"),
-                results.getInt("center_y"),
-                results.getInt("center_z"),
-                results.getInt("size"),
-                results.getInt("slot_index"),
-                results.getLong("created_at"));
+                        results.getString(
+                                "owner_uuid")),
+                results.getString(
+                        "world_name"),
+                results.getInt(
+                        "center_x"),
+                results.getInt(
+                        "center_y"),
+                results.getInt(
+                        "center_z"),
+                results.getInt(
+                        "size"),
+                results.getInt(
+                        "slot_index"),
+                results.getLong(
+                        "created_at"));
+    }
+
+    private IslandMember readMember(
+            ResultSet results) throws SQLException {
+
+        return new IslandMember(
+                results.getLong(
+                        "island_id"),
+                UUID.fromString(
+                        results.getString(
+                                "player_uuid")),
+                IslandRole.valueOf(
+                        results.getString(
+                                "role")),
+                results.getLong(
+                        "joined_at"));
     }
 }

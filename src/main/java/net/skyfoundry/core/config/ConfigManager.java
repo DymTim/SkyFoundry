@@ -79,6 +79,12 @@ public final class ConfigManager {
                 5);
     }
 
+    public int getInviteExpirationSeconds() {
+        return config.getInt(
+                "invites.expiration-seconds",
+                60);
+    }
+
     public int getDefaultLifetimeResets() {
         return config.getInt(
                 "reset.default-lifetime-resets",
