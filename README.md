@@ -127,15 +127,15 @@ The `/sf` alias can be used in place of `/skyfoundry`.
 - [x] Island members
 - [x] Island roles
 - [x] Island invitations
-- [ ] Individual member homes
-- [ ] Ownership transfer
-- [ ] Island deletion
-- [ ] Island reset system
-- [ ] Lifetime reset limits
+- [x] Individual member homes
+- [x] Ownership transfer
+- [x] Island deletion
+- [x] Island reset system
+- [x] Lifetime reset limits
 
 ### Protection
 
-- [ ] Block placement and breaking protection
+- [x] Block placement and breaking protection
 - [ ] Container and interaction protection
 - [ ] Entity protection
 - [ ] Explosion protection

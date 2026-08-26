@@ -1,4 +1,59 @@
-package net.skyfoundry.core;
+
+
+      
+
+    
+
+     
+                 
+                 
+                 
+                
+                 
+                
+                
+                
+                 
+                 
+                 
+                
+                
+                 
+                
+                
+                
+                 
+                
+                
+                
+                
+                
+                 
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+        
+
+     
+                
+                        
+
+                        
+                        
+                                
+                                
+
+    
+
+    package net.skyfoundry.core;
 
 import net.skyfoundry.core.command.IslandCommand;
 import net.skyfoundry.core.command.SkyFoundryCommand;
@@ -9,6 +64,8 @@ import net.skyfoundry.core.home.IslandHomeRepository;
 import net.skyfoundry.core.invite.IslandInviteManager;
 import net.skyfoundry.core.island.IslandManager;
 import net.skyfoundry.core.island.IslandRepository;
+import net.skyfoundry.core.protection.IslandProtectionService;
+import net.skyfoundry.core.protection.listener.BlockProtectionListener;
 import net.skyfoundry.core.reset.PlayerResetRepository;
 import net.skyfoundry.core.service.IslandCreationService;
 import net.skyfoundry.core.service.IslandDeletionService;
@@ -28,13 +85,19 @@ public final class SkyFoundry extends JavaPlugin {
     private DatabaseManager databaseManager;
 
     private SkyWorldManager skyWorldManager;
+
+    private IslandRepository islandRepository;
     private IslandManager islandManager;
+
+    private IslandProtectionService protectionService;
 
     @Override
     public void onLoad() {
         instance = this;
 
-        getLogger().info("Loading SkyFoundry...");
+        getLogger().info(
+                "Loading SkyFoundry..."
+        );
     }
 
     @Override
@@ -46,12 +109,20 @@ public final class SkyFoundry extends JavaPlugin {
             initializeDatabase();
             initializeWorld();
             initializeIslands();
-            registerCommands();
+            initializeProtection();
 
-            getLogger().info("SkyFoundry enabled successfully.");
+            registerCommands();
+            registerListeners();
+
+            getLogger().info(
+                    "SkyFoundry enabled successfully."
+            );
 
         } catch (Exception exception) {
-            getLogger().severe("SkyFoundry failed to enable.");
+
+            getLogger().severe(
+                    "SkyFoundry failed to enable."
+            );
 
             exception.printStackTrace();
 
@@ -67,30 +138,39 @@ public final class SkyFoundry extends JavaPlugin {
             databaseManager.close();
         }
 
-        getLogger().info("SkyFoundry disabled.");
+        getLogger().info(
+                "SkyFoundry disabled."
+        );
     }
 
     private void initializeConfiguration() {
-        configManager = new ConfigManager(this);
+        configManager =
+                new ConfigManager(this);
 
         configManager.load();
 
-        getLogger().info("Configuration loaded.");
+        getLogger().info(
+                "Configuration loaded."
+        );
     }
 
     private void initializeDatabase() {
-        databaseManager = new DatabaseManager(this);
+        databaseManager =
+                new DatabaseManager(this);
 
         databaseManager.initialize();
 
-        getLogger().info("SQLite database initialized.");
+        getLogger().info(
+                "SQLite database initialized."
+        );
     }
 
     private void initializeWorld() {
-        skyWorldManager = new SkyWorldManager(
-                this,
-                configManager
-        );
+        skyWorldManager =
+                new SkyWorldManager(
+                        this,
+                        configManager
+                );
 
         skyWorldManager.loadOrCreateWorld();
 
@@ -103,7 +183,8 @@ public final class SkyFoundry extends JavaPlugin {
     }
 
     private void initializeIslands() {
-        IslandRepository islandRepository =
+
+        islandRepository =
                 new IslandRepository(
                         databaseManager
                 );
@@ -182,7 +263,20 @@ public final class SkyFoundry extends JavaPlugin {
                         skyWorldManager
                 );
 
-        getLogger().info("Island services initialized.");
+        getLogger().info(
+                "Island services initialized."
+        );
+    }
+
+    private void initializeProtection() {
+        protectionService =
+                new IslandProtectionService(
+                        islandRepository
+                );
+
+        getLogger().info(
+                "Island protection initialized."
+        );
     }
 
     private void registerCommands() {
@@ -206,17 +300,39 @@ public final class SkyFoundry extends JavaPlugin {
         );
     }
 
+    private void registerListeners() {
+        getServer()
+                .getPluginManager()
+                .registerEvents(
+                        new BlockProtectionListener(
+                                protectionService
+                        ),
+                        this
+                );
+    }
+
     private void printBanner() {
-        getLogger().info("=================================");
-        getLogger().info(" SkyFoundry");
+        getLogger().info(
+                "================================="
+        );
+
+        getLogger().info(
+                " SkyFoundry"
+        );
 
         getLogger().info(
                 " Version: "
-                        + getPluginMeta().getVersion()
+                        + getPluginMeta()
+                        .getVersion()
         );
 
-        getLogger().info(" Minecraft: 1.21.1");
-        getLogger().info("=================================");
+        getLogger().info(
+                " Minecraft: 1.21.1"
+        );
+
+        getLogger().info(
+                "================================="
+        );
     }
 
     public static SkyFoundry getInstance() {
@@ -237,5 +353,9 @@ public final class SkyFoundry extends JavaPlugin {
 
     public IslandManager getIslandManager() {
         return islandManager;
+    }
+
+    public IslandProtectionService getProtectionService() {
+        return protectionService;
     }
 }

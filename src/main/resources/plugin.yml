@@ -23,3 +23,7 @@ permissions:
   skyfoundry.admin:
     description: Allows access to SkyFoundry administrative commands.
     default: op
+
+  skyfoundry.admin.bypass:
+    description: Bypasses SkyFoundry island protection.
+    default: op

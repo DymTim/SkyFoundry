@@ -33,9 +33,7 @@ public final class IslandRepository {
                 .getConnection()
                 .prepareStatement(sql)) {
 
-            statement.setLong(
-                    1,
-                    islandId);
+            statement.setLong(1, islandId);
 
             try (ResultSet results = statement.executeQuery()) {
 
@@ -48,7 +46,6 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
-
             throw new IllegalStateException(
                     "Could not load island " + islandId,
                     exception);
@@ -83,7 +80,6 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
-
             throw new IllegalStateException(
                     "Could not load island for owner "
                             + ownerUuid,
@@ -121,10 +117,70 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
-
             throw new IllegalStateException(
                     "Could not load island membership for "
                             + playerUuid,
+                    exception);
+        }
+    }
+
+    public Optional<Island> findIslandAt(
+            String worldName,
+            int x,
+            int z) {
+        String sql = """
+                SELECT *
+                FROM islands
+                WHERE world_name = ?
+                  AND ? >= center_x - (size / 2)
+                  AND ? <= center_x + (size / 2) - 1
+                  AND ? >= center_z - (size / 2)
+                  AND ? <= center_z + (size / 2) - 1
+                LIMIT 1;
+                """;
+
+        try (PreparedStatement statement = databaseManager
+                .getConnection()
+                .prepareStatement(sql)) {
+
+            statement.setString(
+                    1,
+                    worldName);
+
+            statement.setInt(
+                    2,
+                    x);
+
+            statement.setInt(
+                    3,
+                    x);
+
+            statement.setInt(
+                    4,
+                    z);
+
+            statement.setInt(
+                    5,
+                    z);
+
+            try (ResultSet results = statement.executeQuery()) {
+
+                if (!results.next()) {
+                    return Optional.empty();
+                }
+
+                return Optional.of(
+                        readIsland(results));
+            }
+
+        } catch (SQLException exception) {
+            throw new IllegalStateException(
+                    "Could not find island at "
+                            + worldName
+                            + " "
+                            + x
+                            + ", "
+                            + z,
                     exception);
         }
     }
@@ -157,7 +213,6 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
-
             throw new IllegalStateException(
                     "Could not load island member "
                             + playerUuid,
@@ -199,7 +254,6 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
-
             throw new IllegalStateException(
                     "Could not load island member.",
                     exception);
@@ -242,7 +296,6 @@ public final class IslandRepository {
             return members;
 
         } catch (SQLException exception) {
-
             throw new IllegalStateException(
                     "Could not load island members.",
                     exception);
@@ -275,7 +328,6 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
-
             throw new IllegalStateException(
                     "Could not count island members.",
                     exception);
@@ -319,7 +371,6 @@ public final class IslandRepository {
             statement.executeUpdate();
 
         } catch (SQLException exception) {
-
             throw new IllegalStateException(
                     "Could not add island member.",
                     exception);
@@ -350,7 +401,6 @@ public final class IslandRepository {
             statement.executeUpdate();
 
         } catch (SQLException exception) {
-
             throw new IllegalStateException(
                     "Could not remove island member.",
                     exception);
@@ -387,7 +437,6 @@ public final class IslandRepository {
             statement.executeUpdate();
 
         } catch (SQLException exception) {
-
             throw new IllegalStateException(
                     "Could not update island role.",
                     exception);
@@ -487,17 +536,14 @@ public final class IslandRepository {
                 connection.commit();
 
             } catch (SQLException exception) {
-
                 connection.rollback();
                 throw exception;
 
             } finally {
-
                 connection.setAutoCommit(true);
             }
 
         } catch (SQLException exception) {
-
             throw new IllegalStateException(
                     "Could not transfer island ownership.",
                     exception);
@@ -521,7 +567,6 @@ public final class IslandRepository {
             statement.executeUpdate();
 
         } catch (SQLException exception) {
-
             throw new IllegalStateException(
                     "Could not delete island.",
                     exception);
@@ -626,17 +671,14 @@ public final class IslandRepository {
                         createdAt);
 
             } catch (SQLException exception) {
-
                 connection.rollback();
                 throw exception;
 
             } finally {
-
                 connection.setAutoCommit(true);
             }
 
         } catch (SQLException exception) {
-
             throw new IllegalStateException(
                     "Could not create island.",
                     exception);
@@ -702,7 +744,6 @@ public final class IslandRepository {
             return 0;
 
         } catch (SQLException exception) {
-
             throw new IllegalStateException(
                     "Could not calculate next island slot.",
                     exception);
@@ -730,7 +771,6 @@ public final class IslandRepository {
             return 0;
 
         } catch (SQLException exception) {
-
             throw new IllegalStateException(
                     "Could not count islands.",
                     exception);
