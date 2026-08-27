@@ -9,6 +9,9 @@ import net.skyfoundry.core.home.IslandHomeRepository;
 import net.skyfoundry.core.invite.IslandInviteManager;
 import net.skyfoundry.core.island.IslandManager;
 import net.skyfoundry.core.island.IslandRepository;
+import net.skyfoundry.core.progression.IslandProgressionRepository;
+import net.skyfoundry.core.progression.IslandUpgradeService;
+import net.skyfoundry.core.progression.boundary.IslandBoundaryService;
 import net.skyfoundry.core.protection.IslandProtectionService;
 import net.skyfoundry.core.protection.listener.AutomationProtectionListener;
 import net.skyfoundry.core.protection.listener.BlockProtectionListener;
@@ -36,14 +39,20 @@ public final class SkyFoundry extends JavaPlugin {
     private static SkyFoundry instance;
 
     private ConfigManager configManager;
+
     private DatabaseManager databaseManager;
 
     private SkyWorldManager skyWorldManager;
 
     private IslandRepository islandRepository;
+
     private IslandManager islandManager;
 
     private IslandProtectionService protectionService;
+
+    private IslandUpgradeService islandUpgradeService;
+
+    private IslandBoundaryService islandBoundaryService;
 
     @Override
     public void onLoad() {
@@ -64,6 +73,7 @@ public final class SkyFoundry extends JavaPlugin {
             initializeWorld();
             initializeIslands();
             initializeProtection();
+            initializeProgression();
 
             registerCommands();
             registerListeners();
@@ -239,13 +249,41 @@ public final class SkyFoundry extends JavaPlugin {
         );
     }
 
+    private void initializeProgression() {
+        IslandProgressionRepository progressionRepository =
+                new IslandProgressionRepository(
+                        databaseManager
+                );
+
+        islandUpgradeService =
+                new IslandUpgradeService(
+                        configManager,
+                        islandManager,
+                        progressionRepository,
+                        protectionService
+                );
+
+        islandBoundaryService =
+                new IslandBoundaryService(
+                        this,
+                        configManager,
+                        islandManager
+                );
+
+        getLogger().info(
+                "Island progression initialized."
+        );
+    }
+
     private void registerCommands() {
         Objects.requireNonNull(
                 getCommand("island"),
                 "island command missing from plugin.yml"
         ).setExecutor(
                 new IslandCommand(
-                        islandManager
+                        islandManager,
+                        islandUpgradeService,
+                        islandBoundaryService
                 )
         );
 
@@ -373,5 +411,13 @@ public final class SkyFoundry extends JavaPlugin {
 
     public IslandProtectionService getProtectionService() {
         return protectionService;
+    }
+
+    public IslandUpgradeService getIslandUpgradeService() {
+        return islandUpgradeService;
+    }
+
+    public IslandBoundaryService getIslandBoundaryService() {
+        return islandBoundaryService;
     }
 }

@@ -148,9 +148,9 @@ The `/sf` alias can be used in place of `/skyfoundry`.
 
 ### Island Progression
 
-- [ ] Island size upgrades
-- [ ] 300×300 maximum island size
-- [ ] Island boundary visualization
+- [x] Island size upgrades
+- [x] 300×300 maximum island size
+- [x] Island boundary visualization
 - [ ] Custom island level system
 - [ ] Block value system
 - [ ] Mission-based progression

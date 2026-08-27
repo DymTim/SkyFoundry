@@ -4,6 +4,9 @@ import net.skyfoundry.core.invite.IslandInvite;
 import net.skyfoundry.core.island.Island;
 import net.skyfoundry.core.island.IslandManager;
 import net.skyfoundry.core.island.IslandMember;
+import net.skyfoundry.core.progression.IslandUpgradeResult;
+import net.skyfoundry.core.progression.IslandUpgradeService;
+import net.skyfoundry.core.progression.boundary.IslandBoundaryService;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
@@ -16,13 +19,24 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
-public final class IslandCommand implements CommandExecutor {
+public final class IslandCommand
+        implements CommandExecutor {
 
     private final IslandManager islandManager;
 
+    private final IslandUpgradeService upgradeService;
+
+    private final IslandBoundaryService boundaryService;
+
     public IslandCommand(
-            IslandManager islandManager) {
+            IslandManager islandManager,
+            IslandUpgradeService upgradeService,
+            IslandBoundaryService boundaryService) {
         this.islandManager = islandManager;
+
+        this.upgradeService = upgradeService;
+
+        this.boundaryService = boundaryService;
     }
 
     @Override
@@ -102,6 +116,12 @@ public final class IslandCommand implements CommandExecutor {
             case "cancel" ->
                 cancel(player);
 
+            case "upgrade" ->
+                upgrade(player);
+
+            case "border", "boundary" ->
+                border(player);
+
             default ->
                 sendHelp(player);
         }
@@ -113,7 +133,6 @@ public final class IslandCommand implements CommandExecutor {
             Player player) {
         if (islandManager.hasIsland(
                 player.getUniqueId())) {
-
             player.sendMessage(
                     "§cYou already belong to an island.");
 
@@ -140,7 +159,6 @@ public final class IslandCommand implements CommandExecutor {
                             + island.getCenterZ());
 
         } catch (Exception exception) {
-
             sendException(
                     player,
                     exception);
@@ -157,7 +175,6 @@ public final class IslandCommand implements CommandExecutor {
                     "§aTeleported to your island home.");
 
         } catch (Exception exception) {
-
             sendException(
                     player,
                     exception);
@@ -174,7 +191,6 @@ public final class IslandCommand implements CommandExecutor {
                     "§aYour island home has been updated.");
 
         } catch (Exception exception) {
-
             sendException(
                     player,
                     exception);
@@ -187,7 +203,6 @@ public final class IslandCommand implements CommandExecutor {
                 player.getUniqueId());
 
         if (optionalIsland.isEmpty()) {
-
             player.sendMessage(
                     "§cYou do not belong to an island.");
 
@@ -239,7 +254,6 @@ public final class IslandCommand implements CommandExecutor {
                 player.getUniqueId());
 
         if (optionalIsland.isEmpty()) {
-
             player.sendMessage(
                     "§cYou do not belong to an island.");
 
@@ -260,8 +274,7 @@ public final class IslandCommand implements CommandExecutor {
             String name = offlinePlayer.getName();
 
             if (name == null) {
-                name = member
-                        .getPlayerUuid()
+                name = member.getPlayerUuid()
                         .toString();
             }
 
@@ -279,7 +292,6 @@ public final class IslandCommand implements CommandExecutor {
             Player player,
             String[] args) {
         if (args.length < 2) {
-
             player.sendMessage(
                     "§cUsage: /island invite <player>");
 
@@ -290,18 +302,14 @@ public final class IslandCommand implements CommandExecutor {
                 args[1]);
 
         if (target == null) {
-
             player.sendMessage(
                     "§cThat player must be online.");
 
             return;
         }
 
-        if (target
-                .getUniqueId()
-                .equals(
-                        player.getUniqueId())) {
-
+        if (target.getUniqueId().equals(
+                player.getUniqueId())) {
             player.sendMessage(
                     "§cYou cannot invite yourself.");
 
@@ -340,7 +348,6 @@ public final class IslandCommand implements CommandExecutor {
                             + " seconds§7.");
 
         } catch (Exception exception) {
-
             sendException(
                     player,
                     exception);
@@ -367,7 +374,6 @@ public final class IslandCommand implements CommandExecutor {
                     player);
 
         } catch (Exception exception) {
-
             sendException(
                     player,
                     exception);
@@ -378,7 +384,6 @@ public final class IslandCommand implements CommandExecutor {
             Player player) {
         if (!islandManager.declineInvite(
                 player)) {
-
             player.sendMessage(
                     "§cYou do not have an active island invitation.");
 
@@ -410,7 +415,6 @@ public final class IslandCommand implements CommandExecutor {
                             player));
 
         } catch (Exception exception) {
-
             sendException(
                     player,
                     exception);
@@ -443,7 +447,6 @@ public final class IslandCommand implements CommandExecutor {
                     "§cYou were removed from your island.");
 
         } catch (Exception exception) {
-
             sendException(
                     player,
                     exception);
@@ -476,7 +479,6 @@ public final class IslandCommand implements CommandExecutor {
                     "§aYou are now a Co-Owner of your island.");
 
         } catch (Exception exception) {
-
             sendException(
                     player,
                     exception);
@@ -509,7 +511,6 @@ public final class IslandCommand implements CommandExecutor {
                     "§eYou are now a Member of your island.");
 
         } catch (Exception exception) {
-
             sendException(
                     player,
                     exception);
@@ -545,7 +546,6 @@ public final class IslandCommand implements CommandExecutor {
                     "§eUse §f/island confirm §eto continue or §f/island cancel §eto cancel.");
 
         } catch (Exception exception) {
-
             sendException(
                     player,
                     exception);
@@ -571,7 +571,6 @@ public final class IslandCommand implements CommandExecutor {
                     "§eUse §f/island confirm §eto continue or §f/island cancel §eto cancel.");
 
         } catch (Exception exception) {
-
             sendException(
                     player,
                     exception);
@@ -604,7 +603,6 @@ public final class IslandCommand implements CommandExecutor {
                     "§eUse §f/island confirm §eto continue or §f/island cancel §eto cancel.");
 
         } catch (Exception exception) {
-
             sendException(
                     player,
                     exception);
@@ -641,7 +639,6 @@ public final class IslandCommand implements CommandExecutor {
                     message);
 
         } catch (Exception exception) {
-
             sendException(
                     player,
                     exception);
@@ -650,10 +647,8 @@ public final class IslandCommand implements CommandExecutor {
 
     private void cancel(
             Player player) {
-        if (!islandManager
-                .cancelConfirmation(
-                        player)) {
-
+        if (!islandManager.cancelConfirmation(
+                player)) {
             player.sendMessage(
                     "§cYou do not have an active island confirmation.");
 
@@ -664,12 +659,66 @@ public final class IslandCommand implements CommandExecutor {
                 "§7Island action cancelled.");
     }
 
+    private void upgrade(
+            Player player) {
+        try {
+            IslandUpgradeResult result = upgradeService.upgrade(
+                    player);
+
+            player.sendMessage(
+                    "§6§lISLAND UPGRADED");
+
+            player.sendMessage(
+                    "§7Previous size: §f"
+                            + result.previousSize()
+                            + "x"
+                            + result.previousSize());
+
+            player.sendMessage(
+                    "§7New size: §a"
+                            + result.newSize()
+                            + "x"
+                            + result.newSize());
+
+            if (result.reachedMaximum()) {
+                player.sendMessage(
+                        "§eYour island has reached the maximum size.");
+            } else {
+                player.sendMessage(
+                        "§7Maximum size: §f"
+                                + result.maximumSize()
+                                + "x"
+                                + result.maximumSize());
+            }
+
+        } catch (Exception exception) {
+            sendException(
+                    player,
+                    exception);
+        }
+    }
+
+    private void border(
+            Player player) {
+        try {
+            boundaryService.showBoundary(
+                    player);
+
+            player.sendMessage(
+                    "§aShowing your island boundary.");
+
+        } catch (Exception exception) {
+            sendException(
+                    player,
+                    exception);
+        }
+    }
+
     private Player requireOnlineTarget(
             Player sender,
             String[] args,
             String command) {
         if (args.length < 2) {
-
             sender.sendMessage(
                     "§cUsage: /island "
                             + command
@@ -682,7 +731,6 @@ public final class IslandCommand implements CommandExecutor {
                 args[1]);
 
         if (target == null) {
-
             sender.sendMessage(
                     "§cThat player must be online.");
 
@@ -778,6 +826,12 @@ public final class IslandCommand implements CommandExecutor {
 
         player.sendMessage(
                 "§e/island transfer <player> §7- Transfer ownership");
+
+        player.sendMessage(
+                "§e/island upgrade §7- Expand your island");
+
+        player.sendMessage(
+                "§e/island border §7- Show your island boundary");
 
         player.sendMessage(
                 "§e/island reset §7- Reset your island");

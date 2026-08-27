@@ -105,6 +105,36 @@ public final class ConfigManager {
                         15000));
     }
 
+    public boolean isUpgradeManagementRoleRequired() {
+        return config.getBoolean(
+                "progression.upgrades.require-management-role",
+                true);
+    }
+
+    public int getBoundaryDurationSeconds() {
+        return Math.max(
+                1,
+                config.getInt(
+                        "boundary.duration-seconds",
+                        10));
+    }
+
+    public int getBoundaryParticleSpacing() {
+        return Math.max(
+                1,
+                config.getInt(
+                        "boundary.particle-spacing",
+                        2));
+    }
+
+    public int getBoundaryUpdateTicks() {
+        return Math.max(
+                1,
+                config.getInt(
+                        "boundary.update-ticks",
+                        10));
+    }
+
     public boolean isDebugEnabled() {
         return config.getBoolean(
                 "debug",

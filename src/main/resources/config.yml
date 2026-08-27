@@ -27,4 +27,13 @@ reset:
 region-clear:
   blocks-per-tick: 15000
 
+progression:
+  upgrades:
+    require-management-role: true
+
+boundary:
+  duration-seconds: 10
+  particle-spacing: 2
+  update-ticks: 10
+
 debug: false
