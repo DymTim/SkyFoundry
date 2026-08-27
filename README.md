@@ -11,8 +11,10 @@ The project is currently being developed and tested on **Youer 1.21.1** using **
 ![Java](https://img.shields.io/badge/Java-21-blue)
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
 
-> [!WARNING]
-> SkyFoundry is currently in early development. APIs, configuration formats, database structures, commands, and behavior may change before the first stable `1.0.0` release.
+> [!IMPORTANT]
+> SkyFoundry is currently in early development and is being built specifically
+> for the SkyFoundry Minecraft server. APIs, configuration formats, database
+> schemas, and features may change before the first stable release.
 
 ## 📖 About
 
