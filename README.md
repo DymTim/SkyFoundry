@@ -138,12 +138,12 @@ The `/sf` alias can be used in place of `/skyfoundry`.
 ### Protection
 
 - [x] Block placement and breaking protection
-- [ ] Container and interaction protection
-- [ ] Entity protection
-- [ ] Explosion protection
-- [ ] Fluid boundary protection
-- [ ] Piston boundary protection
-- [ ] Modded block protection
+- [x] Container and interaction protection
+- [x] Entity protection
+- [x] Explosion protection
+- [x] Fluid boundary protection
+- [x] Piston boundary protection
+- [x] Modded block protection
 - [ ] Create automation protection
 
 ### Island Progression

@@ -10,9 +10,15 @@ import net.skyfoundry.core.invite.IslandInviteManager;
 import net.skyfoundry.core.island.IslandManager;
 import net.skyfoundry.core.island.IslandRepository;
 import net.skyfoundry.core.protection.IslandProtectionService;
+import net.skyfoundry.core.protection.listener.AutomationProtectionListener;
 import net.skyfoundry.core.protection.listener.BlockProtectionListener;
+import net.skyfoundry.core.protection.listener.EntityProtectionListener;
+import net.skyfoundry.core.protection.listener.ExplosionProtectionListener;
+import net.skyfoundry.core.protection.listener.FluidProtectionListener;
 import net.skyfoundry.core.protection.listener.InteractionProtectionListener;
 import net.skyfoundry.core.protection.listener.InventoryProtectionListener;
+import net.skyfoundry.core.protection.listener.PistonProtectionListener;
+import net.skyfoundry.core.protection.listener.PlayerWorldProtectionListener;
 import net.skyfoundry.core.reset.PlayerResetRepository;
 import net.skyfoundry.core.service.IslandCreationService;
 import net.skyfoundry.core.service.IslandDeletionService;
@@ -20,6 +26,7 @@ import net.skyfoundry.core.service.IslandLocationService;
 import net.skyfoundry.core.service.IslandRegionService;
 import net.skyfoundry.core.service.IslandResetService;
 import net.skyfoundry.core.world.SkyWorldManager;
+import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Objects;
@@ -221,7 +228,10 @@ public final class SkyFoundry extends JavaPlugin {
     private void initializeProtection() {
         protectionService =
                 new IslandProtectionService(
-                        islandRepository
+                        islandRepository,
+                        skyWorldManager
+                                .getWorld()
+                                .getName()
                 );
 
         getLogger().info(
@@ -251,30 +261,68 @@ public final class SkyFoundry extends JavaPlugin {
     }
 
     private void registerListeners() {
-        getServer()
-                .getPluginManager()
-                .registerEvents(
-                        new BlockProtectionListener(
-                                protectionService
-                        ),
-                        this
-                );
+        registerListener(
+                new BlockProtectionListener(
+                        protectionService
+                )
+        );
 
-        getServer()
-                .getPluginManager()
-                .registerEvents(
-                        new InteractionProtectionListener(
-                                protectionService
-                        ),
-                        this
-                );
+        registerListener(
+                new InteractionProtectionListener(
+                        protectionService
+                )
+        );
 
+        registerListener(
+                new InventoryProtectionListener(
+                        protectionService
+                )
+        );
+
+        registerListener(
+                new EntityProtectionListener(
+                        protectionService
+                )
+        );
+
+        registerListener(
+                new ExplosionProtectionListener(
+                        protectionService
+                )
+        );
+
+        registerListener(
+                new FluidProtectionListener(
+                        protectionService
+                )
+        );
+
+        registerListener(
+                new PistonProtectionListener(
+                        protectionService
+                )
+        );
+
+        registerListener(
+                new AutomationProtectionListener(
+                        protectionService
+                )
+        );
+
+        registerListener(
+                new PlayerWorldProtectionListener(
+                        protectionService
+                )
+        );
+    }
+
+    private void registerListener(
+            Listener listener
+    ) {
         getServer()
                 .getPluginManager()
                 .registerEvents(
-                        new InventoryProtectionListener(
-                                protectionService
-                        ),
+                        listener,
                         this
                 );
     }

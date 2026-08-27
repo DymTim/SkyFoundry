@@ -16,13 +16,18 @@ public final class IslandProtectionService
 
     private final IslandRepository islandRepository;
 
+    private final String managedWorldName;
+
     private final IslandSpatialIndex spatialIndex = new IslandSpatialIndex();
 
     private final IslandMembershipIndex membershipIndex = new IslandMembershipIndex();
 
     public IslandProtectionService(
-            IslandRepository islandRepository) {
+            IslandRepository islandRepository,
+            String managedWorldName) {
         this.islandRepository = islandRepository;
+
+        this.managedWorldName = managedWorldName;
 
         rebuildIndexes();
 
@@ -53,14 +58,24 @@ public final class IslandProtectionService
                 BYPASS_PERMISSION);
     }
 
+    public boolean isManagedWorld(
+            Location location) {
+        return location.getWorld() != null
+                && location
+                        .getWorld()
+                        .getName()
+                        .equals(
+                                managedWorldName);
+    }
+
     public Optional<Island> getIslandAt(
             Location location) {
-        if (location.getWorld() == null) {
+        if (!isManagedWorld(location)) {
             return Optional.empty();
         }
 
         return spatialIndex.findIsland(
-                location.getWorld().getName(),
+                managedWorldName,
                 location.getBlockX(),
                 location.getBlockZ());
     }
@@ -72,9 +87,21 @@ public final class IslandProtectionService
             return true;
         }
 
+        /*
+         * SkyFoundry protection only owns the
+         * dedicated island world.
+         */
+        if (!isManagedWorld(location)) {
+            return true;
+        }
+
         Optional<Island> island = getIslandAt(
                 location);
 
+        /*
+         * Unallocated space inside the island
+         * world is protected.
+         */
         if (island.isEmpty()) {
             return false;
         }
@@ -92,24 +119,70 @@ public final class IslandProtectionService
                 location);
     }
 
-    public boolean isSameIsland(
-            Location first,
-            Location second) {
-        Optional<Island> firstIsland = getIslandAt(first);
+    /**
+     * Determines whether something originating
+     * at one location may affect another.
+     *
+     * Used for:
+     * fluids
+     * pistons
+     * explosions
+     * automation
+     * environmental movement
+     */
+    public boolean canAffect(
+            Location source,
+            Location target) {
+        boolean sourceManaged = isManagedWorld(source);
 
-        Optional<Island> secondIsland = getIslandAt(second);
+        boolean targetManaged = isManagedWorld(target);
 
-        if (firstIsland.isEmpty()
-                || secondIsland.isEmpty()) {
+        /*
+         * Neither location belongs to SkyFoundry.
+         */
+        if (!sourceManaged
+                && !targetManaged) {
+
+            return true;
+        }
+
+        /*
+         * Prevent anything from crossing into or
+         * out of the SkyFoundry island world.
+         */
+        if (sourceManaged != targetManaged) {
+            return false;
+        }
+
+        Optional<Island> sourceIsland = getIslandAt(
+                source);
+
+        Optional<Island> targetIsland = getIslandAt(
+                target);
+
+        /*
+         * Effects cannot enter/leave unallocated
+         * sections of the island world.
+         */
+        if (sourceIsland.isEmpty()
+                || targetIsland.isEmpty()) {
 
             return false;
         }
 
-        return firstIsland
+        return sourceIsland
                 .get()
-                .getId() == secondIsland
+                .getId() == targetIsland
                         .get()
                         .getId();
+    }
+
+    public boolean isSameIsland(
+            Location first,
+            Location second) {
+        return canAffect(
+                first,
+                second);
     }
 
     public boolean isInsideAllocatedIsland(
