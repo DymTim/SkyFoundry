@@ -14,7 +14,8 @@ public final class DatabaseManager {
 
     private Connection connection;
 
-    public DatabaseManager(SkyFoundry plugin) {
+    public DatabaseManager(
+            SkyFoundry plugin) {
         this.plugin = plugin;
     }
 
@@ -33,7 +34,8 @@ public final class DatabaseManager {
 
             connection = DriverManager.getConnection(
                     "jdbc:sqlite:"
-                            + databaseFile.getAbsolutePath());
+                            + databaseFile
+                                    .getAbsolutePath());
 
             try (Statement statement = connection.createStatement()) {
 
@@ -54,7 +56,8 @@ public final class DatabaseManager {
         }
     }
 
-    private void createTables() throws SQLException {
+    private void createTables()
+            throws SQLException {
 
         String islandsTable = """
                 CREATE TABLE IF NOT EXISTS islands (
@@ -111,6 +114,55 @@ public final class DatabaseManager {
                 );
                 """;
 
+        String progressionTable = """
+                CREATE TABLE IF NOT EXISTS island_progression (
+                    island_id INTEGER PRIMARY KEY,
+                    mission_xp INTEGER NOT NULL DEFAULT 0,
+                    block_score INTEGER NOT NULL DEFAULT 0,
+
+                    FOREIGN KEY (island_id)
+                        REFERENCES islands(id)
+                        ON DELETE CASCADE
+                );
+                """;
+
+        String blockCountsTable = """
+                CREATE TABLE IF NOT EXISTS island_block_counts (
+                    island_id INTEGER NOT NULL,
+                    block_key TEXT NOT NULL,
+                    block_count INTEGER NOT NULL DEFAULT 0,
+
+                    PRIMARY KEY (island_id, block_key),
+
+                    FOREIGN KEY (island_id)
+                        REFERENCES islands(id)
+                        ON DELETE CASCADE
+                );
+                """;
+
+        String dailyMissionsTable = """
+                CREATE TABLE IF NOT EXISTS island_daily_missions (
+                    island_id INTEGER NOT NULL,
+                    mission_date TEXT NOT NULL,
+                    slot INTEGER NOT NULL,
+                    mission_id TEXT NOT NULL,
+                    target_amount INTEGER NOT NULL,
+                    progress INTEGER NOT NULL DEFAULT 0,
+                    xp_reward INTEGER NOT NULL,
+                    completed INTEGER NOT NULL DEFAULT 0,
+
+                    PRIMARY KEY (
+                        island_id,
+                        mission_date,
+                        slot
+                    ),
+
+                    FOREIGN KEY (island_id)
+                        REFERENCES islands(id)
+                        ON DELETE CASCADE
+                );
+                """;
+
         String uniqueMembershipIndex = """
                 CREATE UNIQUE INDEX IF NOT EXISTS
                 idx_island_members_player
@@ -119,11 +171,29 @@ public final class DatabaseManager {
 
         try (Statement statement = connection.createStatement()) {
 
-            statement.execute(islandsTable);
-            statement.execute(membersTable);
-            statement.execute(homesTable);
-            statement.execute(resetUsageTable);
-            statement.execute(uniqueMembershipIndex);
+            statement.execute(
+                    islandsTable);
+
+            statement.execute(
+                    membersTable);
+
+            statement.execute(
+                    homesTable);
+
+            statement.execute(
+                    resetUsageTable);
+
+            statement.execute(
+                    progressionTable);
+
+            statement.execute(
+                    blockCountsTable);
+
+            statement.execute(
+                    dailyMissionsTable);
+
+            statement.execute(
+                    uniqueMembershipIndex);
         }
     }
 

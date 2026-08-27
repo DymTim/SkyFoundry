@@ -1,7 +1,16 @@
 package net.skyfoundry.core.config;
 
 import net.skyfoundry.core.SkyFoundry;
+import net.skyfoundry.core.progression.mission.DailyMissionDefinition;
+import net.skyfoundry.core.progression.mission.MissionActionType;
+import net.skyfoundry.core.progression.mission.MissionCategory;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public final class ConfigManager {
 
@@ -9,7 +18,8 @@ public final class ConfigManager {
 
     private FileConfiguration config;
 
-    public ConfigManager(SkyFoundry plugin) {
+    public ConfigManager(
+            SkyFoundry plugin) {
         this.plugin = plugin;
     }
 
@@ -22,6 +32,7 @@ public final class ConfigManager {
 
     public void reload() {
         plugin.reloadConfig();
+
         config = plugin.getConfig();
     }
 
@@ -109,6 +120,218 @@ public final class ConfigManager {
         return config.getBoolean(
                 "progression.upgrades.require-management-role",
                 true);
+    }
+
+    public long getIslandLevelBaseXp() {
+        return Math.max(
+                1L,
+                config.getLong(
+                        "progression.level.base-xp",
+                        100L));
+    }
+
+    public double getIslandLevelExponent() {
+        return Math.max(
+                1.0,
+                config.getDouble(
+                        "progression.level.exponent",
+                        2.0));
+    }
+
+    public double getBlockValueContributionMultiplier() {
+        return Math.max(
+                0.0,
+                config.getDouble(
+                        "progression.block-value.contribution-multiplier",
+                        5.0));
+    }
+
+    public Map<String, Long> getBlockValues() {
+        Map<String, Long> values = new HashMap<>();
+
+        ConfigurationSection section = config.getConfigurationSection(
+                "progression.block-value.values");
+
+        if (section == null) {
+            return values;
+        }
+
+        for (String key : section.getKeys(false)) {
+
+            long value = Math.max(
+                    0L,
+                    section.getLong(
+                            key,
+                            0L));
+
+            values.put(
+                    key.toLowerCase(),
+                    value);
+        }
+
+        return values;
+    }
+
+    public int getDailyMissionCount() {
+        return Math.max(
+                1,
+                config.getInt(
+                        "progression.daily-missions.count",
+                        5));
+    }
+
+    public List<DailyMissionDefinition> getDailyMissionDefinitions() {
+
+        List<DailyMissionDefinition> definitions = new ArrayList<>();
+
+        ConfigurationSection templates = config.getConfigurationSection(
+                "progression.daily-missions.templates");
+
+        if (templates == null) {
+            return definitions;
+        }
+
+        for (String missionId : templates.getKeys(false)) {
+
+            ConfigurationSection section = templates.getConfigurationSection(
+                    missionId);
+
+            if (section == null) {
+                continue;
+            }
+
+            String name = section.getString(
+                    "name",
+                    missionId);
+
+            String rawCategory = section.getString(
+                    "category",
+                    "");
+
+            String rawType = section.getString(
+                    "type",
+                    "");
+
+            MissionCategory category;
+
+            try {
+                category = MissionCategory.valueOf(
+                        rawCategory.toUpperCase());
+
+            } catch (IllegalArgumentException exception) {
+
+                plugin.getLogger().warning(
+                        "Ignoring daily mission '"
+                                + missionId
+                                + "' because category '"
+                                + rawCategory
+                                + "' is invalid.");
+
+                continue;
+            }
+
+            MissionActionType actionType;
+
+            try {
+                actionType = MissionActionType.valueOf(
+                        rawType.toUpperCase());
+
+            } catch (IllegalArgumentException exception) {
+
+                plugin.getLogger().warning(
+                        "Ignoring daily mission '"
+                                + missionId
+                                + "' because type '"
+                                + rawType
+                                + "' is invalid.");
+
+                continue;
+            }
+
+            int minimumIslandLevel = Math.max(
+                    0,
+                    section.getInt(
+                            "minimum-island-level",
+                            0));
+
+            List<String> targets = new ArrayList<>();
+
+            for (String target : section.getStringList(
+                    "targets")) {
+
+                if (target == null
+                        || target.isBlank()) {
+
+                    continue;
+                }
+
+                targets.add(
+                        target.toLowerCase());
+            }
+
+            if (targets.isEmpty()) {
+
+                plugin.getLogger().warning(
+                        "Ignoring daily mission '"
+                                + missionId
+                                + "' because it has no targets.");
+
+                continue;
+            }
+
+            ConfigurationSection amountSection = section.getConfigurationSection(
+                    "amount");
+
+            if (amountSection == null) {
+
+                plugin.getLogger().warning(
+                        "Ignoring daily mission '"
+                                + missionId
+                                + "' because it has no amount section.");
+
+                continue;
+            }
+
+            int minimumAmount = Math.max(
+                    1,
+                    amountSection.getInt(
+                            "minimum",
+                            1));
+
+            int maximumAmount = Math.max(
+                    minimumAmount,
+                    amountSection.getInt(
+                            "maximum",
+                            minimumAmount));
+
+            int amountPerLevel = Math.max(
+                    0,
+                    amountSection.getInt(
+                            "per-level",
+                            0));
+
+            long xpReward = Math.max(
+                    0L,
+                    section.getLong(
+                            "xp",
+                            0L));
+
+            definitions.add(
+                    new DailyMissionDefinition(
+                            missionId,
+                            name,
+                            category,
+                            actionType,
+                            minimumIslandLevel,
+                            List.copyOf(
+                                    targets),
+                            minimumAmount,
+                            maximumAmount,
+                            amountPerLevel,
+                            xpReward));
+        }
+
+        return definitions;
     }
 
     public int getBoundaryDurationSeconds() {

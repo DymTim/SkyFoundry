@@ -1,39 +1,261 @@
-world:
-  name: skyfoundry_islands
-
-islands:
-  starting-size: 50
-  maximum-size: 300
-  size-upgrade-amount: 50
-  spacing: 500
-
-  starter-platform:
-    enabled: true
-    y: 100
-    radius: 2
-
-members:
-  default-limit: 5
-
-invites:
-  expiration-seconds: 60
-
-confirmations:
-  expiration-seconds: 30
-
-reset:
-  default-lifetime-resets: 1
-
-region-clear:
-  blocks-per-tick: 15000
-
 progression:
   upgrades:
     require-management-role: true
 
-boundary:
-  duration-seconds: 10
-  particle-spacing: 2
-  update-ticks: 10
+  level:
+    base-xp: 100
+    exponent: 2.0
 
-debug: false
+  block-value:
+    contribution-multiplier: 5.0
+
+    values:
+      minecraft:cobblestone: 1
+      minecraft:stone: 1
+      minecraft:andesite: 2
+      minecraft:diorite: 2
+      minecraft:granite: 2
+
+      minecraft:coal_block: 10
+      minecraft:copper_block: 15
+      minecraft:iron_block: 25
+      minecraft:gold_block: 50
+      minecraft:redstone_block: 40
+      minecraft:lapis_block: 45
+      minecraft:diamond_block: 100
+      minecraft:emerald_block: 125
+
+  daily-missions:
+    count: 5
+
+    templates:
+      mine-cobblestone:
+        name: "Stonework"
+        category: MINING
+        type: BREAK_BLOCK
+        minimum-island-level: 0
+        targets:
+          - minecraft:cobblestone
+        amount:
+          minimum: 250
+          maximum: 500
+          per-level: 15
+        xp: 150
+
+      mine-coal:
+        name: "Coal Run"
+        category: MINING
+        type: BREAK_BLOCK
+        minimum-island-level: 5
+        targets:
+          - minecraft:coal_ore
+        amount:
+          minimum: 32
+          maximum: 64
+          per-level: 2
+        xp: 175
+
+      mine-copper:
+        name: "Copper Collection"
+        category: MINING
+        type: BREAK_BLOCK
+        minimum-island-level: 10
+        targets:
+          - minecraft:copper_ore
+        amount:
+          minimum: 48
+          maximum: 96
+          per-level: 2
+        xp: 200
+
+      mine-iron:
+        name: "Ironworks"
+        category: MINING
+        type: BREAK_BLOCK
+        minimum-island-level: 15
+        targets:
+          - minecraft:iron_ore
+        amount:
+          minimum: 32
+          maximum: 64
+          per-level: 2
+        xp: 225
+
+      mine-gold:
+        name: "Golden Opportunity"
+        category: MINING
+        type: BREAK_BLOCK
+        minimum-island-level: 30
+        targets:
+          - minecraft:gold_ore
+        amount:
+          minimum: 24
+          maximum: 48
+          per-level: 1
+        xp: 275
+
+      mine-redstone:
+        name: "Redstone Rush"
+        category: MINING
+        type: BREAK_BLOCK
+        minimum-island-level: 40
+        targets:
+          - minecraft:redstone_ore
+        amount:
+          minimum: 32
+          maximum: 64
+          per-level: 1
+        xp: 300
+
+      mine-lapis:
+        name: "Blue Harvest"
+        category: MINING
+        type: BREAK_BLOCK
+        minimum-island-level: 45
+        targets:
+          - minecraft:lapis_ore
+        amount:
+          minimum: 24
+          maximum: 48
+          per-level: 1
+        xp: 325
+
+      chop-logs:
+        name: "Lumber Duty"
+        category: FORESTRY
+        type: BREAK_BLOCK
+        minimum-island-level: 0
+        targets:
+          - minecraft:oak_log
+          - minecraft:spruce_log
+          - minecraft:birch_log
+          - minecraft:jungle_log
+          - minecraft:acacia_log
+          - minecraft:dark_oak_log
+          - minecraft:mangrove_log
+          - minecraft:cherry_log
+        amount:
+          minimum: 96
+          maximum: 192
+          per-level: 4
+        xp: 150
+
+      harvest-wheat:
+        name: "Wheat Harvest"
+        category: FARMING
+        type: BREAK_BLOCK
+        minimum-island-level: 0
+        targets:
+          - minecraft:wheat
+        amount:
+          minimum: 128
+          maximum: 256
+          per-level: 5
+        xp: 150
+
+      harvest-carrots:
+        name: "Carrot Harvest"
+        category: FARMING
+        type: BREAK_BLOCK
+        minimum-island-level: 5
+        targets:
+          - minecraft:carrots
+        amount:
+          minimum: 128
+          maximum: 256
+          per-level: 5
+        xp: 175
+
+      harvest-potatoes:
+        name: "Potato Harvest"
+        category: FARMING
+        type: BREAK_BLOCK
+        minimum-island-level: 5
+        targets:
+          - minecraft:potatoes
+        amount:
+          minimum: 128
+          maximum: 256
+          per-level: 5
+        xp: 175
+
+      harvest-sugar-cane:
+        name: "Sugar Rush"
+        category: FARMING
+        type: BREAK_BLOCK
+        minimum-island-level: 10
+        targets:
+          - minecraft:sugar_cane
+        amount:
+          minimum: 128
+          maximum: 256
+          per-level: 5
+        xp: 200
+
+      kill-zombies:
+        name: "Zombie Hunter"
+        category: COMBAT
+        type: KILL_ENTITY
+        minimum-island-level: 0
+        targets:
+          - minecraft:zombie
+        amount:
+          minimum: 20
+          maximum: 40
+          per-level: 1
+        xp: 175
+
+      kill-skeletons:
+        name: "Bone Collector"
+        category: COMBAT
+        type: KILL_ENTITY
+        minimum-island-level: 5
+        targets:
+          - minecraft:skeleton
+        amount:
+          minimum: 20
+          maximum: 40
+          per-level: 1
+        xp: 175
+
+      kill-spiders:
+        name: "Pest Control"
+        category: COMBAT
+        type: KILL_ENTITY
+        minimum-island-level: 5
+        targets:
+          - minecraft:spider
+        amount:
+          minimum: 20
+          maximum: 40
+          per-level: 1
+        xp: 175
+
+      kill-creepers:
+        name: "Explosive Cleanup"
+        category: COMBAT
+        type: KILL_ENTITY
+        minimum-island-level: 10
+        targets:
+          - minecraft:creeper
+        amount:
+          minimum: 15
+          maximum: 30
+          per-level: 1
+        xp: 225
+
+      catch-fish:
+        name: "Gone Fishing"
+        category: FISHING
+        type: FISH
+        minimum-island-level: 0
+        targets:
+          - minecraft:cod
+          - minecraft:salmon
+          - minecraft:tropical_fish
+          - minecraft:pufferfish
+        amount:
+          minimum: 8
+          maximum: 16
+          per-level: 0
+        xp: 175
