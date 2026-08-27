@@ -15,7 +15,6 @@ public final class IslandProtectionService
     public static final String BYPASS_PERMISSION = "skyfoundry.admin.bypass";
 
     private final IslandRepository islandRepository;
-
     private final String managedWorldName;
 
     private final IslandSpatialIndex spatialIndex = new IslandSpatialIndex();
@@ -80,6 +79,14 @@ public final class IslandProtectionService
                 location.getBlockZ());
     }
 
+    public boolean isMemberOfIsland(
+            Player player,
+            Island island) {
+        return membershipIndex.belongsToIsland(
+                player.getUniqueId(),
+                island.getId());
+    }
+
     public boolean canModify(
             Player player,
             Location location) {
@@ -87,10 +94,6 @@ public final class IslandProtectionService
             return true;
         }
 
-        /*
-         * SkyFoundry protection only owns the
-         * dedicated island world.
-         */
         if (!isManagedWorld(location)) {
             return true;
         }
@@ -98,17 +101,13 @@ public final class IslandProtectionService
         Optional<Island> island = getIslandAt(
                 location);
 
-        /*
-         * Unallocated space inside the island
-         * world is protected.
-         */
         if (island.isEmpty()) {
             return false;
         }
 
-        return membershipIndex.belongsToIsland(
-                player.getUniqueId(),
-                island.get().getId());
+        return isMemberOfIsland(
+                player,
+                island.get());
     }
 
     public boolean canInteract(
@@ -119,17 +118,6 @@ public final class IslandProtectionService
                 location);
     }
 
-    /**
-     * Determines whether something originating
-     * at one location may affect another.
-     *
-     * Used for:
-     * fluids
-     * pistons
-     * explosions
-     * automation
-     * environmental movement
-     */
     public boolean canAffect(
             Location source,
             Location target) {
@@ -137,19 +125,12 @@ public final class IslandProtectionService
 
         boolean targetManaged = isManagedWorld(target);
 
-        /*
-         * Neither location belongs to SkyFoundry.
-         */
         if (!sourceManaged
                 && !targetManaged) {
 
             return true;
         }
 
-        /*
-         * Prevent anything from crossing into or
-         * out of the SkyFoundry island world.
-         */
         if (sourceManaged != targetManaged) {
             return false;
         }
@@ -160,10 +141,6 @@ public final class IslandProtectionService
         Optional<Island> targetIsland = getIslandAt(
                 target);
 
-        /*
-         * Effects cannot enter/leave unallocated
-         * sections of the island world.
-         */
         if (sourceIsland.isEmpty()
                 || targetIsland.isEmpty()) {
 

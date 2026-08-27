@@ -9,9 +9,17 @@ import net.skyfoundry.core.home.IslandHomeRepository;
 import net.skyfoundry.core.invite.IslandInviteManager;
 import net.skyfoundry.core.island.IslandManager;
 import net.skyfoundry.core.island.IslandRepository;
+import net.skyfoundry.core.progression.BlockValueRegistry;
+import net.skyfoundry.core.progression.IslandLevelService;
 import net.skyfoundry.core.progression.IslandProgressionRepository;
 import net.skyfoundry.core.progression.IslandUpgradeService;
 import net.skyfoundry.core.progression.boundary.IslandBoundaryService;
+import net.skyfoundry.core.progression.listener.DailyCombatMissionListener;
+import net.skyfoundry.core.progression.listener.DailyFishingMissionListener;
+import net.skyfoundry.core.progression.listener.IslandBlockProgressionListener;
+import net.skyfoundry.core.progression.mission.DailyMissionGenerator;
+import net.skyfoundry.core.progression.mission.DailyMissionRegistry;
+import net.skyfoundry.core.progression.mission.DailyMissionService;
 import net.skyfoundry.core.protection.IslandProtectionService;
 import net.skyfoundry.core.protection.listener.AutomationProtectionListener;
 import net.skyfoundry.core.protection.listener.BlockProtectionListener;
@@ -39,20 +47,25 @@ public final class SkyFoundry extends JavaPlugin {
     private static SkyFoundry instance;
 
     private ConfigManager configManager;
-
     private DatabaseManager databaseManager;
 
     private SkyWorldManager skyWorldManager;
 
     private IslandRepository islandRepository;
-
     private IslandManager islandManager;
 
     private IslandProtectionService protectionService;
 
     private IslandUpgradeService islandUpgradeService;
-
     private IslandBoundaryService islandBoundaryService;
+
+    private IslandProgressionRepository progressionRepository;
+    private IslandLevelService islandLevelService;
+
+    private BlockValueRegistry blockValueRegistry;
+
+    private DailyMissionRegistry dailyMissionRegistry;
+    private DailyMissionService dailyMissionService;
 
     @Override
     public void onLoad() {
@@ -83,7 +96,6 @@ public final class SkyFoundry extends JavaPlugin {
             );
 
         } catch (Exception exception) {
-
             getLogger().severe(
                     "SkyFoundry failed to enable."
             );
@@ -114,10 +126,6 @@ public final class SkyFoundry extends JavaPlugin {
                 );
 
         configManager.load();
-
-        getLogger().info(
-                "Configuration loaded."
-        );
     }
 
     private void initializeDatabase() {
@@ -127,10 +135,6 @@ public final class SkyFoundry extends JavaPlugin {
                 );
 
         databaseManager.initialize();
-
-        getLogger().info(
-                "SQLite database initialized."
-        );
     }
 
     private void initializeWorld() {
@@ -141,13 +145,6 @@ public final class SkyFoundry extends JavaPlugin {
                 );
 
         skyWorldManager.loadOrCreateWorld();
-
-        getLogger().info(
-                "Island world loaded: "
-                        + skyWorldManager
-                        .getWorld()
-                        .getName()
-        );
     }
 
     private void initializeIslands() {
@@ -229,10 +226,6 @@ public final class SkyFoundry extends JavaPlugin {
                         resetService,
                         skyWorldManager
                 );
-
-        getLogger().info(
-                "Island services initialized."
-        );
     }
 
     private void initializeProtection() {
@@ -243,16 +236,40 @@ public final class SkyFoundry extends JavaPlugin {
                                 .getWorld()
                                 .getName()
                 );
-
-        getLogger().info(
-                "Island protection initialized."
-        );
     }
 
     private void initializeProgression() {
-        IslandProgressionRepository progressionRepository =
+        progressionRepository =
                 new IslandProgressionRepository(
                         databaseManager
+                );
+
+        islandLevelService =
+                new IslandLevelService(
+                        configManager
+                );
+
+        blockValueRegistry =
+                new BlockValueRegistry(
+                        configManager
+                );
+
+        dailyMissionRegistry =
+                new DailyMissionRegistry(
+                        configManager
+                );
+
+        DailyMissionGenerator missionGenerator =
+                new DailyMissionGenerator();
+
+        dailyMissionService =
+                new DailyMissionService(
+                        configManager,
+                        islandManager,
+                        progressionRepository,
+                        islandLevelService,
+                        dailyMissionRegistry,
+                        missionGenerator
                 );
 
         islandUpgradeService =
@@ -269,27 +286,25 @@ public final class SkyFoundry extends JavaPlugin {
                         configManager,
                         islandManager
                 );
-
-        getLogger().info(
-                "Island progression initialized."
-        );
     }
 
     private void registerCommands() {
         Objects.requireNonNull(
-                getCommand("island"),
-                "island command missing from plugin.yml"
+                getCommand("island")
         ).setExecutor(
                 new IslandCommand(
                         islandManager,
                         islandUpgradeService,
-                        islandBoundaryService
+                        islandBoundaryService,
+                        progressionRepository,
+                        islandLevelService,
+                        dailyMissionService,
+                        dailyMissionRegistry
                 )
         );
 
         Objects.requireNonNull(
-                getCommand("skyfoundry"),
-                "skyfoundry command missing from plugin.yml"
+                getCommand("skyfoundry")
         ).setExecutor(
                 new SkyFoundryCommand(
                         this,
@@ -352,6 +367,29 @@ public final class SkyFoundry extends JavaPlugin {
                         protectionService
                 )
         );
+
+        registerListener(
+                new IslandBlockProgressionListener(
+                        protectionService,
+                        blockValueRegistry,
+                        progressionRepository,
+                        dailyMissionService
+                )
+        );
+
+        registerListener(
+                new DailyCombatMissionListener(
+                        protectionService,
+                        dailyMissionService
+                )
+        );
+
+        registerListener(
+                new DailyFishingMissionListener(
+                        protectionService,
+                        dailyMissionService
+                )
+        );
     }
 
     private void registerListener(
@@ -411,13 +449,5 @@ public final class SkyFoundry extends JavaPlugin {
 
     public IslandProtectionService getProtectionService() {
         return protectionService;
-    }
-
-    public IslandUpgradeService getIslandUpgradeService() {
-        return islandUpgradeService;
-    }
-
-    public IslandBoundaryService getIslandBoundaryService() {
-        return islandBoundaryService;
     }
 }

@@ -11,30 +11,27 @@ public final class IslandLevelService {
         this.configManager = configManager;
     }
 
-    public long getBlockXpContribution(
-            long blockScore) {
-        if (blockScore <= 0) {
-            return 0L;
-        }
-
-        double multiplier = configManager
-                .getBlockValueContributionMultiplier();
-
-        return Math.round(
-                Math.sqrt(
-                        blockScore) * multiplier);
-    }
-
+    /**
+     * Island level is based entirely on earned
+     * mission XP.
+     *
+     * Block value is intentionally separate from
+     * progression XP.
+     */
     public long getEffectiveXp(
             IslandProgress progress) {
-        return progress.missionXp()
-                + getBlockXpContribution(
-                        progress.blockScore());
+        return progress.missionXp();
     }
 
     public int calculateLevel(
-            long effectiveXp) {
-        if (effectiveXp <= 0) {
+            IslandProgress progress) {
+        return calculateLevel(
+                progress.missionXp());
+    }
+
+    public int calculateLevel(
+            long missionXp) {
+        if (missionXp <= 0) {
             return 0;
         }
 
@@ -45,7 +42,7 @@ public final class IslandLevelService {
                 .getIslandLevelExponent();
 
         double level = Math.pow(
-                effectiveXp / base,
+                missionXp / base,
                 1.0 / exponent);
 
         return Math.max(
