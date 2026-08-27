@@ -1,59 +1,4 @@
-
-
-      
-
-    
-
-     
-                 
-                 
-                 
-                
-                 
-                
-                
-                
-                 
-                 
-                 
-                
-                
-                 
-                
-                
-                
-                 
-                
-                
-                
-                
-                
-                 
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-        
-
-     
-                
-                        
-
-                        
-                        
-                                
-                                
-
-    
-
-    package net.skyfoundry.core;
+package net.skyfoundry.core;
 
 import net.skyfoundry.core.command.IslandCommand;
 import net.skyfoundry.core.command.SkyFoundryCommand;
@@ -66,6 +11,8 @@ import net.skyfoundry.core.island.IslandManager;
 import net.skyfoundry.core.island.IslandRepository;
 import net.skyfoundry.core.protection.IslandProtectionService;
 import net.skyfoundry.core.protection.listener.BlockProtectionListener;
+import net.skyfoundry.core.protection.listener.InteractionProtectionListener;
+import net.skyfoundry.core.protection.listener.InventoryProtectionListener;
 import net.skyfoundry.core.reset.PlayerResetRepository;
 import net.skyfoundry.core.service.IslandCreationService;
 import net.skyfoundry.core.service.IslandDeletionService;
@@ -145,7 +92,9 @@ public final class SkyFoundry extends JavaPlugin {
 
     private void initializeConfiguration() {
         configManager =
-                new ConfigManager(this);
+                new ConfigManager(
+                        this
+                );
 
         configManager.load();
 
@@ -156,7 +105,9 @@ public final class SkyFoundry extends JavaPlugin {
 
     private void initializeDatabase() {
         databaseManager =
-                new DatabaseManager(this);
+                new DatabaseManager(
+                        this
+                );
 
         databaseManager.initialize();
 
@@ -183,7 +134,6 @@ public final class SkyFoundry extends JavaPlugin {
     }
 
     private void initializeIslands() {
-
         islandRepository =
                 new IslandRepository(
                         databaseManager
@@ -305,6 +255,24 @@ public final class SkyFoundry extends JavaPlugin {
                 .getPluginManager()
                 .registerEvents(
                         new BlockProtectionListener(
+                                protectionService
+                        ),
+                        this
+                );
+
+        getServer()
+                .getPluginManager()
+                .registerEvents(
+                        new InteractionProtectionListener(
+                                protectionService
+                        ),
+                        this
+                );
+
+        getServer()
+                .getPluginManager()
+                .registerEvents(
+                        new InventoryProtectionListener(
                                 protectionService
                         ),
                         this

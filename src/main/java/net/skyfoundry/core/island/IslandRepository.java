@@ -16,12 +16,81 @@ public final class IslandRepository {
 
     private final DatabaseManager databaseManager;
 
+    private final List<IslandRepositoryListener> listeners = new ArrayList<>();
+
     public IslandRepository(
             DatabaseManager databaseManager) {
         this.databaseManager = databaseManager;
     }
 
-    public Optional<Island> findById(long islandId) {
+    public void addListener(
+            IslandRepositoryListener listener) {
+        listeners.add(
+                listener);
+    }
+
+    public List<Island> findAllIslands() {
+        String sql = """
+                SELECT *
+                FROM islands;
+                """;
+
+        List<Island> islands = new ArrayList<>();
+
+        try (
+                Statement statement = databaseManager
+                        .getConnection()
+                        .createStatement();
+
+                ResultSet results = statement.executeQuery(sql)) {
+
+            while (results.next()) {
+                islands.add(
+                        readIsland(results));
+            }
+
+            return islands;
+
+        } catch (SQLException exception) {
+
+            throw new IllegalStateException(
+                    "Could not load islands.",
+                    exception);
+        }
+    }
+
+    public List<IslandMember> findAllMembers() {
+        String sql = """
+                SELECT *
+                FROM island_members;
+                """;
+
+        List<IslandMember> members = new ArrayList<>();
+
+        try (
+                Statement statement = databaseManager
+                        .getConnection()
+                        .createStatement();
+
+                ResultSet results = statement.executeQuery(sql)) {
+
+            while (results.next()) {
+                members.add(
+                        readMember(results));
+            }
+
+            return members;
+
+        } catch (SQLException exception) {
+
+            throw new IllegalStateException(
+                    "Could not load island members.",
+                    exception);
+        }
+    }
+
+    public Optional<Island> findById(
+            long islandId) {
         String sql = """
                 SELECT *
                 FROM islands
@@ -33,7 +102,9 @@ public final class IslandRepository {
                 .getConnection()
                 .prepareStatement(sql)) {
 
-            statement.setLong(1, islandId);
+            statement.setLong(
+                    1,
+                    islandId);
 
             try (ResultSet results = statement.executeQuery()) {
 
@@ -46,8 +117,10 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
-                    "Could not load island " + islandId,
+                    "Could not load island "
+                            + islandId,
                     exception);
         }
     }
@@ -80,6 +153,7 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not load island for owner "
                             + ownerUuid,
@@ -117,6 +191,7 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not load island membership for "
                             + playerUuid,
@@ -174,6 +249,7 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not find island at "
                             + worldName
@@ -213,6 +289,7 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not load island member "
                             + playerUuid,
@@ -254,6 +331,7 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not load island member.",
                     exception);
@@ -296,13 +374,15 @@ public final class IslandRepository {
             return members;
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not load island members.",
                     exception);
         }
     }
 
-    public int countMembers(long islandId) {
+    public int countMembers(
+            long islandId) {
         String sql = """
                 SELECT COUNT(*) AS member_count
                 FROM island_members
@@ -328,6 +408,7 @@ public final class IslandRepository {
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not count island members.",
                     exception);
@@ -348,6 +429,8 @@ public final class IslandRepository {
                 VALUES (?, ?, ?, ?);
                 """;
 
+        long joinedAt = System.currentTimeMillis();
+
         try (PreparedStatement statement = databaseManager
                 .getConnection()
                 .prepareStatement(sql)) {
@@ -366,20 +449,37 @@ public final class IslandRepository {
 
             statement.setLong(
                     4,
-                    System.currentTimeMillis());
+                    joinedAt);
 
             statement.executeUpdate();
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not add island member.",
                     exception);
+        }
+
+        IslandMember member = new IslandMember(
+                islandId,
+                playerUuid,
+                role,
+                joinedAt);
+
+        for (IslandRepositoryListener listener : listeners) {
+
+            listener.onMemberAdded(
+                    member);
         }
     }
 
     public void removeMember(
             long islandId,
             UUID playerUuid) {
+        Optional<IslandMember> existingMember = findMember(
+                islandId,
+                playerUuid);
+
         String sql = """
                 DELETE FROM island_members
                 WHERE island_id = ?
@@ -401,10 +501,21 @@ public final class IslandRepository {
             statement.executeUpdate();
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not remove island member.",
                     exception);
         }
+
+        existingMember.ifPresent(
+                member -> {
+
+                    for (IslandRepositoryListener listener : listeners) {
+
+                        listener.onMemberRemoved(
+                                member);
+                    }
+                });
     }
 
     public void updateRole(
@@ -437,10 +548,23 @@ public final class IslandRepository {
             statement.executeUpdate();
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not update island role.",
                     exception);
         }
+
+        findMember(
+                islandId,
+                playerUuid).ifPresent(
+                        member -> {
+
+                            for (IslandRepositoryListener listener : listeners) {
+
+                                listener.onMemberRoleChanged(
+                                        member);
+                            }
+                        });
     }
 
     public void transferOwnership(
@@ -536,21 +660,55 @@ public final class IslandRepository {
                 connection.commit();
 
             } catch (SQLException exception) {
+
                 connection.rollback();
                 throw exception;
 
             } finally {
+
                 connection.setAutoCommit(true);
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not transfer island ownership.",
                     exception);
         }
+
+        findMember(
+                islandId,
+                oldOwnerUuid).ifPresent(
+                        member -> {
+
+                            for (IslandRepositoryListener listener : listeners) {
+
+                                listener.onMemberRoleChanged(
+                                        member);
+                            }
+                        });
+
+        findMember(
+                islandId,
+                newOwnerUuid).ifPresent(
+                        member -> {
+
+                            for (IslandRepositoryListener listener : listeners) {
+
+                                listener.onMemberRoleChanged(
+                                        member);
+                            }
+                        });
     }
 
-    public void deleteIsland(long islandId) {
+    public void deleteIsland(
+            long islandId) {
+        Optional<Island> existingIsland = findById(
+                islandId);
+
+        List<IslandMember> existingMembers = getMembers(
+                islandId);
+
         String sql = """
                 DELETE FROM islands
                 WHERE id = ?;
@@ -567,10 +725,30 @@ public final class IslandRepository {
             statement.executeUpdate();
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not delete island.",
                     exception);
         }
+
+        for (IslandMember member : existingMembers) {
+
+            for (IslandRepositoryListener listener : listeners) {
+
+                listener.onMemberRemoved(
+                        member);
+            }
+        }
+
+        existingIsland.ifPresent(
+                island -> {
+
+                    for (IslandRepositoryListener listener : listeners) {
+
+                        listener.onIslandDeleted(
+                                island);
+                    }
+                });
     }
 
     public Island create(
@@ -599,8 +777,12 @@ public final class IslandRepository {
 
         Connection connection = databaseManager.getConnection();
 
+        long islandId;
+        long ownerJoinedAt;
+
         try {
-            connection.setAutoCommit(false);
+            connection.setAutoCommit(
+                    false);
 
             try (PreparedStatement statement = connection.prepareStatement(
                     sql,
@@ -640,11 +822,10 @@ public final class IslandRepository {
 
                 statement.executeUpdate();
 
-                long islandId;
-
                 try (ResultSet keys = statement.getGeneratedKeys()) {
 
                     if (!keys.next()) {
+
                         throw new SQLException(
                                 "Island insert did not return an ID.");
                     }
@@ -652,40 +833,61 @@ public final class IslandRepository {
                     islandId = keys.getLong(1);
                 }
 
-                addOwnerMember(
+                ownerJoinedAt = addOwnerMember(
                         connection,
                         islandId,
                         ownerUuid);
 
                 connection.commit();
 
-                return new Island(
-                        islandId,
-                        ownerUuid,
-                        worldName,
-                        centerX,
-                        centerY,
-                        centerZ,
-                        size,
-                        slotIndex,
-                        createdAt);
-
             } catch (SQLException exception) {
+
                 connection.rollback();
                 throw exception;
 
             } finally {
-                connection.setAutoCommit(true);
+
+                connection.setAutoCommit(
+                        true);
             }
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not create island.",
                     exception);
         }
+
+        Island island = new Island(
+                islandId,
+                ownerUuid,
+                worldName,
+                centerX,
+                centerY,
+                centerZ,
+                size,
+                slotIndex,
+                createdAt);
+
+        IslandMember ownerMember = new IslandMember(
+                islandId,
+                ownerUuid,
+                IslandRole.OWNER,
+                ownerJoinedAt);
+
+        for (IslandRepositoryListener listener : listeners) {
+
+            listener.onIslandCreated(
+                    island);
+
+            listener.onMemberAdded(
+                    ownerMember);
+        }
+
+        return island;
     }
 
-    private void addOwnerMember(
+    private long addOwnerMember(
             Connection connection,
             long islandId,
             UUID ownerUuid) throws SQLException {
@@ -699,6 +901,8 @@ public final class IslandRepository {
                 )
                 VALUES (?, ?, ?, ?);
                 """;
+
+        long joinedAt = System.currentTimeMillis();
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
 
@@ -716,10 +920,12 @@ public final class IslandRepository {
 
             statement.setLong(
                     4,
-                    System.currentTimeMillis());
+                    joinedAt);
 
             statement.executeUpdate();
         }
+
+        return joinedAt;
     }
 
     public int getNextSlotIndex() {
@@ -737,6 +943,7 @@ public final class IslandRepository {
                 ResultSet results = statement.executeQuery(sql)) {
 
             if (results.next()) {
+
                 return results.getInt(
                         "next_slot");
             }
@@ -744,6 +951,7 @@ public final class IslandRepository {
             return 0;
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not calculate next island slot.",
                     exception);
@@ -764,6 +972,7 @@ public final class IslandRepository {
                 ResultSet results = statement.executeQuery(sql)) {
 
             if (results.next()) {
+
                 return results.getInt(
                         "island_count");
             }
@@ -771,6 +980,7 @@ public final class IslandRepository {
             return 0;
 
         } catch (SQLException exception) {
+
             throw new IllegalStateException(
                     "Could not count islands.",
                     exception);
@@ -781,7 +991,8 @@ public final class IslandRepository {
             ResultSet results) throws SQLException {
 
         return new Island(
-                results.getLong("id"),
+                results.getLong(
+                        "id"),
                 UUID.fromString(
                         results.getString(
                                 "owner_uuid")),

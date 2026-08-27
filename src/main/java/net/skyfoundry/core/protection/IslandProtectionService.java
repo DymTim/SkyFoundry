@@ -1,24 +1,54 @@
 package net.skyfoundry.core.protection;
 
 import net.skyfoundry.core.island.Island;
+import net.skyfoundry.core.island.IslandMember;
 import net.skyfoundry.core.island.IslandRepository;
+import net.skyfoundry.core.island.IslandRepositoryListener;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 import java.util.Optional;
 
-public final class IslandProtectionService {
+public final class IslandProtectionService
+        implements IslandRepositoryListener {
 
     public static final String BYPASS_PERMISSION = "skyfoundry.admin.bypass";
 
     private final IslandRepository islandRepository;
 
+    private final IslandSpatialIndex spatialIndex = new IslandSpatialIndex();
+
+    private final IslandMembershipIndex membershipIndex = new IslandMembershipIndex();
+
     public IslandProtectionService(
             IslandRepository islandRepository) {
         this.islandRepository = islandRepository;
+
+        rebuildIndexes();
+
+        islandRepository.addListener(
+                this);
     }
 
-    public boolean hasBypass(Player player) {
+    public void rebuildIndexes() {
+        spatialIndex.clear();
+        membershipIndex.clear();
+
+        for (Island island : islandRepository.findAllIslands()) {
+
+            spatialIndex.registerIsland(
+                    island);
+        }
+
+        for (IslandMember member : islandRepository.findAllMembers()) {
+
+            membershipIndex.registerMember(
+                    member);
+        }
+    }
+
+    public boolean hasBypass(
+            Player player) {
         return player.hasPermission(
                 BYPASS_PERMISSION);
     }
@@ -29,7 +59,7 @@ public final class IslandProtectionService {
             return Optional.empty();
         }
 
-        return islandRepository.findIslandAt(
+        return spatialIndex.findIsland(
                 location.getWorld().getName(),
                 location.getBlockX(),
                 location.getBlockZ());
@@ -42,24 +72,16 @@ public final class IslandProtectionService {
             return true;
         }
 
-        Optional<Island> targetIsland = getIslandAt(location);
+        Optional<Island> island = getIslandAt(
+                location);
 
-        if (targetIsland.isEmpty()) {
+        if (island.isEmpty()) {
             return false;
         }
 
-        Optional<Island> playerIsland = islandRepository.findByMember(
-                player.getUniqueId());
-
-        if (playerIsland.isEmpty()) {
-            return false;
-        }
-
-        return playerIsland
-                .get()
-                .getId() == targetIsland
-                        .get()
-                        .getId();
+        return membershipIndex.belongsToIsland(
+                player.getUniqueId(),
+                island.get().getId());
     }
 
     public boolean canInteract(
@@ -94,5 +116,40 @@ public final class IslandProtectionService {
             Location location) {
         return getIslandAt(
                 location).isPresent();
+    }
+
+    @Override
+    public void onIslandCreated(
+            Island island) {
+        spatialIndex.registerIsland(
+                island);
+    }
+
+    @Override
+    public void onIslandDeleted(
+            Island island) {
+        spatialIndex.unregisterIsland(
+                island);
+    }
+
+    @Override
+    public void onMemberAdded(
+            IslandMember member) {
+        membershipIndex.registerMember(
+                member);
+    }
+
+    @Override
+    public void onMemberRemoved(
+            IslandMember member) {
+        membershipIndex.unregisterMember(
+                member.getPlayerUuid());
+    }
+
+    @Override
+    public void onMemberRoleChanged(
+            IslandMember member) {
+        membershipIndex.registerMember(
+                member);
     }
 }
