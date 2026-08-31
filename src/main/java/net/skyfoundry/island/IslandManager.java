@@ -45,6 +45,7 @@ public final class IslandManager {
 
         String sql = """
                 SELECT
+                    island_id,
                     owner_uuid,
                     center_x,
                     center_z,
@@ -76,9 +77,6 @@ public final class IslandManager {
                     continue;
                 }
 
-                int centerX = resultSet.getInt("center_x");
-                int centerZ = resultSet.getInt("center_z");
-
                 Location home = new Location(
                         islandWorld,
                         resultSet.getDouble("home_x"),
@@ -88,9 +86,10 @@ public final class IslandManager {
                         resultSet.getFloat("home_pitch"));
 
                 Island island = new Island(
+                        resultSet.getLong("island_id"),
                         ownerUuid,
-                        centerX,
-                        centerZ,
+                        resultSet.getInt("center_x"),
+                        resultSet.getInt("center_z"),
                         home,
                         resultSet.getLong("created_at"));
 
@@ -109,9 +108,9 @@ public final class IslandManager {
             return existing;
         }
 
-        long index = getNextIslandIndex();
+        long nextIslandId = getNextIslandId();
 
-        IslandPositioner.IslandPosition position = positioner.getPosition(index);
+        IslandPositioner.IslandPosition position = positioner.getPosition(nextIslandId - 1);
 
         int creationY = plugin.getConfig().getInt(
                 "islands.creation-y",
@@ -126,6 +125,7 @@ public final class IslandManager {
         long createdAt = Instant.now().getEpochSecond();
 
         Island island = new Island(
+                nextIslandId,
                 ownerUuid,
                 position.x(),
                 position.z(),
@@ -140,9 +140,7 @@ public final class IslandManager {
     }
 
     public boolean deleteIsland(UUID ownerUuid) throws SQLException {
-        Island island = islands.get(ownerUuid);
-
-        if (island == null) {
+        if (!islands.containsKey(ownerUuid)) {
             return false;
         }
 
@@ -174,6 +172,7 @@ public final class IslandManager {
     private void insertIsland(Island island) throws SQLException {
         String sql = """
                 INSERT INTO islands (
+                    island_id,
                     owner_uuid,
                     center_x,
                     center_z,
@@ -184,7 +183,7 @@ public final class IslandManager {
                     home_pitch,
                     created_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """;
 
         Location home = island.getHome();
@@ -193,30 +192,55 @@ public final class IslandManager {
                 PreparedStatement statement = database
                         .getConnection()
                         .prepareStatement(sql)) {
-            statement.setString(
+            statement.setLong(
                     1,
+                    island.getIslandId());
+
+            statement.setString(
+                    2,
                     island.getOwnerUuid().toString());
 
-            statement.setInt(2, island.getCenterX());
-            statement.setInt(3, island.getCenterZ());
+            statement.setInt(
+                    3,
+                    island.getCenterX());
 
-            statement.setDouble(4, home.getX());
-            statement.setDouble(5, home.getY());
-            statement.setDouble(6, home.getZ());
+            statement.setInt(
+                    4,
+                    island.getCenterZ());
 
-            statement.setFloat(7, home.getYaw());
-            statement.setFloat(8, home.getPitch());
+            statement.setDouble(
+                    5,
+                    home.getX());
 
-            statement.setLong(9, island.getCreatedAt());
+            statement.setDouble(
+                    6,
+                    home.getY());
+
+            statement.setDouble(
+                    7,
+                    home.getZ());
+
+            statement.setFloat(
+                    8,
+                    home.getYaw());
+
+            statement.setFloat(
+                    9,
+                    home.getPitch());
+
+            statement.setLong(
+                    10,
+                    island.getCreatedAt());
 
             statement.executeUpdate();
         }
     }
 
-    private long getNextIslandIndex() throws SQLException {
+    private long getNextIslandId() throws SQLException {
         String sql = """
-                SELECT COUNT(*) AS island_count
-                FROM islands;
+                SELECT seq
+                FROM sqlite_sequence
+                WHERE name = 'islands';
                 """;
 
         try (
@@ -226,11 +250,11 @@ public final class IslandManager {
 
                 ResultSet resultSet = statement.executeQuery(sql)) {
             if (resultSet.next()) {
-                return resultSet.getLong("island_count");
+                return resultSet.getLong("seq") + 1;
             }
         }
 
-        return 0;
+        return 1;
     }
 
     public Optional<Island> getIsland(UUID ownerUuid) {

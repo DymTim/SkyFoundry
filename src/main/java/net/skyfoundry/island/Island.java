@@ -7,6 +7,7 @@ import java.util.UUID;
 
 public final class Island {
 
+    private final long islandId;
     private final UUID ownerUuid;
     private final int centerX;
     private final int centerZ;
@@ -15,16 +16,22 @@ public final class Island {
     private Location home;
 
     public Island(
+            long islandId,
             UUID ownerUuid,
             int centerX,
             int centerZ,
             Location home,
             long createdAt) {
+        this.islandId = islandId;
         this.ownerUuid = ownerUuid;
         this.centerX = centerX;
         this.centerZ = centerZ;
         this.home = home.clone();
         this.createdAt = createdAt;
+    }
+
+    public long getIslandId() {
+        return islandId;
     }
 
     public UUID getOwnerUuid() {

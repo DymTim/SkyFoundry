@@ -11,6 +11,7 @@ import java.sql.Statement;
 public final class Database {
 
     private final SkyFoundry plugin;
+
     private Connection connection;
 
     public Database(SkyFoundry plugin) {
@@ -19,9 +20,13 @@ public final class Database {
 
     public void initialize() throws SQLException {
         String fileName = plugin.getConfig()
-                .getString("storage.database-file", "skyfoundry.db");
+                .getString(
+                        "storage.database-file",
+                        "skyfoundry.db");
 
-        File databaseFile = new File(plugin.getDataFolder(), fileName);
+        File databaseFile = new File(
+                plugin.getDataFolder(),
+                fileName);
 
         connection = DriverManager.getConnection(
                 "jdbc:sqlite:" + databaseFile.getAbsolutePath());
@@ -32,17 +37,25 @@ public final class Database {
 
     private void configureConnection() throws SQLException {
         try (Statement statement = connection.createStatement()) {
-            statement.execute("PRAGMA journal_mode=WAL;");
-            statement.execute("PRAGMA synchronous=NORMAL;");
-            statement.execute("PRAGMA foreign_keys=ON;");
-            statement.execute("PRAGMA busy_timeout=5000;");
+            statement.execute(
+                    "PRAGMA journal_mode=WAL;");
+
+            statement.execute(
+                    "PRAGMA synchronous=NORMAL;");
+
+            statement.execute(
+                    "PRAGMA foreign_keys=ON;");
+
+            statement.execute(
+                    "PRAGMA busy_timeout=5000;");
         }
     }
 
     private void createTables() throws SQLException {
         String islandsTable = """
                 CREATE TABLE IF NOT EXISTS islands (
-                    owner_uuid TEXT PRIMARY KEY,
+                    island_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    owner_uuid TEXT NOT NULL UNIQUE,
                     center_x INTEGER NOT NULL,
                     center_z INTEGER NOT NULL,
                     home_x REAL NOT NULL,
@@ -54,8 +67,14 @@ public final class Database {
                 );
                 """;
 
+        String centerIndex = """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_islands_center
+                ON islands (center_x, center_z);
+                """;
+
         try (Statement statement = connection.createStatement()) {
             statement.execute(islandsTable);
+            statement.execute(centerIndex);
         }
     }
 
