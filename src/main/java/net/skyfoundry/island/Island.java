@@ -1,0 +1,85 @@
+package net.skyfoundry.island;
+
+import org.bukkit.Location;
+import org.bukkit.World;
+
+import java.util.UUID;
+
+public final class Island {
+
+    private final UUID ownerUuid;
+    private final int centerX;
+    private final int centerZ;
+    private final long createdAt;
+
+    private Location home;
+
+    public Island(
+            UUID ownerUuid,
+            int centerX,
+            int centerZ,
+            Location home,
+            long createdAt) {
+        this.ownerUuid = ownerUuid;
+        this.centerX = centerX;
+        this.centerZ = centerZ;
+        this.home = home.clone();
+        this.createdAt = createdAt;
+    }
+
+    public UUID getOwnerUuid() {
+        return ownerUuid;
+    }
+
+    public int getCenterX() {
+        return centerX;
+    }
+
+    public int getCenterZ() {
+        return centerZ;
+    }
+
+    public long getCreatedAt() {
+        return createdAt;
+    }
+
+    public Location getHome() {
+        return home.clone();
+    }
+
+    public void setHome(Location home) {
+        this.home = home.clone();
+    }
+
+    public Location getCenter(World world, double y) {
+        return new Location(
+                world,
+                centerX + 0.5,
+                y,
+                centerZ + 0.5);
+    }
+
+    public boolean contains(Location location, int size) {
+        if (location.getWorld() == null || home.getWorld() == null) {
+            return false;
+        }
+
+        if (!location.getWorld().equals(home.getWorld())) {
+            return false;
+        }
+
+        int minX = centerX - (size / 2);
+        int minZ = centerZ - (size / 2);
+
+        int maxX = minX + size - 1;
+        int maxZ = minZ + size - 1;
+
+        int blockX = location.getBlockX();
+        int blockZ = location.getBlockZ();
+
+        return blockX >= minX
+                && blockX <= maxX
+                && blockZ >= minZ
+                && blockZ <= maxZ;
+    }
+}
