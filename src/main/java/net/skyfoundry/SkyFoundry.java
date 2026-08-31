@@ -183,6 +183,7 @@ public final class SkyFoundry extends JavaPlugin {
                 database = new Database(this);
 
                 try {
+                        database.connect();
                         database.initialize();
 
                         getLogger().info(

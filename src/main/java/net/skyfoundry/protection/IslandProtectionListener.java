@@ -3,6 +3,7 @@ package net.skyfoundry.protection;
 import net.skyfoundry.SkyFoundry;
 import net.skyfoundry.island.Island;
 import net.skyfoundry.island.IslandManager;
+import net.skyfoundry.island.IslandRole;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
@@ -19,7 +20,8 @@ import org.bukkit.event.player.PlayerInteractEvent;
 
 import java.util.Optional;
 
-public final class IslandProtectionListener implements Listener {
+public final class IslandProtectionListener
+        implements Listener {
 
     private final SkyFoundry plugin;
     private final IslandManager islandManager;
@@ -36,7 +38,8 @@ public final class IslandProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockBreak(
             BlockBreakEvent event) {
-        if (!isProtectionEnabled("block-break")) {
+        if (!isProtectionEnabled(
+                "block-break")) {
             return;
         }
 
@@ -46,18 +49,22 @@ public final class IslandProtectionListener implements Listener {
             return;
         }
 
-        if (!canModify(
+        if (!canBuild(
                 player,
                 event.getBlock().getLocation())) {
-            event.setCancelled(true);
-            sendProtectedMessage(player);
+            event.setCancelled(
+                    true);
+
+            sendProtectedMessage(
+                    player);
         }
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockPlace(
             BlockPlaceEvent event) {
-        if (!isProtectionEnabled("block-place")) {
+        if (!isProtectionEnabled(
+                "block-place")) {
             return;
         }
 
@@ -67,18 +74,23 @@ public final class IslandProtectionListener implements Listener {
             return;
         }
 
-        if (!canModify(
+        if (!canBuild(
                 player,
-                event.getBlockPlaced().getLocation())) {
-            event.setCancelled(true);
-            sendProtectedMessage(player);
+                event.getBlockPlaced()
+                        .getLocation())) {
+            event.setCancelled(
+                    true);
+
+            sendProtectedMessage(
+                    player);
         }
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onInteract(
             PlayerInteractEvent event) {
-        if (!isProtectionEnabled("interaction")) {
+        if (!isProtectionEnabled(
+                "interaction")) {
             return;
         }
 
@@ -92,18 +104,23 @@ public final class IslandProtectionListener implements Listener {
             return;
         }
 
-        if (!canModify(
+        if (!canInteract(
                 player,
-                event.getClickedBlock().getLocation())) {
-            event.setCancelled(true);
-            sendProtectedMessage(player);
+                event.getClickedBlock()
+                        .getLocation())) {
+            event.setCancelled(
+                    true);
+
+            sendProtectedMessage(
+                    player);
         }
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityInteract(
             PlayerInteractEntityEvent event) {
-        if (!isProtectionEnabled("entities")) {
+        if (!isProtectionEnabled(
+                "entities")) {
             return;
         }
 
@@ -113,26 +130,33 @@ public final class IslandProtectionListener implements Listener {
             return;
         }
 
-        if (!canModify(
+        if (!canInteract(
                 player,
-                event.getRightClicked().getLocation())) {
-            event.setCancelled(true);
-            sendProtectedMessage(player);
+                event.getRightClicked()
+                        .getLocation())) {
+            event.setCancelled(
+                    true);
+
+            sendProtectedMessage(
+                    player);
         }
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityDamage(
             EntityDamageByEntityEvent event) {
-        if (!isProtectionEnabled("entities")) {
+        if (!isProtectionEnabled(
+                "entities")) {
             return;
         }
 
         if (!(event.getDamager() instanceof Player player)) {
+
             return;
         }
 
         if (event.getEntity() instanceof Player) {
+
             return;
         }
 
@@ -140,24 +164,30 @@ public final class IslandProtectionListener implements Listener {
             return;
         }
 
-        if (!canModify(
+        if (!canInteract(
                 player,
-                event.getEntity().getLocation())) {
-            event.setCancelled(true);
-            sendProtectedMessage(player);
+                event.getEntity()
+                        .getLocation())) {
+            event.setCancelled(
+                    true);
+
+            sendProtectedMessage(
+                    player);
         }
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onHangingBreak(
             HangingBreakByEntityEvent event) {
-        if (!isProtectionEnabled("entities")) {
+        if (!isProtectionEnabled(
+                "entities")) {
             return;
         }
 
         Entity remover = event.getRemover();
 
         if (!(remover instanceof Player player)) {
+
             return;
         }
 
@@ -165,97 +195,131 @@ public final class IslandProtectionListener implements Listener {
             return;
         }
 
-        if (!canModify(
+        if (!canInteract(
                 player,
-                event.getEntity().getLocation())) {
-            event.setCancelled(true);
-            sendProtectedMessage(player);
+                event.getEntity()
+                        .getLocation())) {
+            event.setCancelled(
+                    true);
+
+            sendProtectedMessage(
+                    player);
         }
     }
 
-    private boolean canModify(
+    private boolean canBuild(
             Player player,
             Location location) {
-        if (!location.getWorld().equals(islandWorld)) {
+        if (!location.getWorld()
+                .equals(islandWorld)) {
+
             return true;
         }
 
-        int islandSize = Math.max(
-                1,
-                plugin.getConfig().getInt(
-                        "islands.size",
-                        50));
+        Optional<Island> islandOptional = islandManager.getIslandAt(
+                location);
 
-        Optional<Island> islandAtLocation = getIslandAt(
-                location,
-                islandSize);
-
-        if (islandAtLocation.isEmpty()) {
-            return !plugin.getConfig().getBoolean(
-                    "protection.prevent-building-outside-islands",
-                    true);
+        if (islandOptional.isEmpty()) {
+            return !plugin.getConfig()
+                    .getBoolean(
+                            "protection.prevent-building-outside-islands",
+                            true);
         }
 
-        return islandAtLocation
-                .get()
-                .getOwnerUuid()
-                .equals(
-                        player.getUniqueId());
+        Island island = islandOptional.get();
+
+        if (!islandManager.isMemberOf(
+                player.getUniqueId(),
+                island)) {
+            return false;
+        }
+
+        IslandRole role = islandManager
+                .getRole(
+                        player.getUniqueId())
+                .orElse(null);
+
+        return role != null
+                && role.canBuild();
     }
 
-    private Optional<Island> getIslandAt(
-            Location location,
-            int islandSize) {
-        for (Island island : islandManager.getIslands().values()) {
+    private boolean canInteract(
+            Player player,
+            Location location) {
+        if (!location.getWorld()
+                .equals(islandWorld)) {
 
-            if (island.contains(
-                    location,
-                    islandSize)) {
-                return Optional.of(
-                        island);
-            }
+            return true;
         }
 
-        return Optional.empty();
+        Optional<Island> islandOptional = islandManager.getIslandAt(
+                location);
+
+        if (islandOptional.isEmpty()) {
+            return !plugin.getConfig()
+                    .getBoolean(
+                            "protection.prevent-building-outside-islands",
+                            true);
+        }
+
+        Island island = islandOptional.get();
+
+        if (!islandManager.isMemberOf(
+                player.getUniqueId(),
+                island)) {
+            return false;
+        }
+
+        IslandRole role = islandManager
+                .getRole(
+                        player.getUniqueId())
+                .orElse(null);
+
+        return role != null
+                && role.canInteract();
     }
 
     private boolean isProtectionEnabled(
             String setting) {
-        if (!plugin.getConfig().getBoolean(
-                "protection.enabled",
-                true)) {
+        if (!plugin.getConfig()
+                .getBoolean(
+                        "protection.enabled",
+                        true)) {
+
             return false;
         }
 
-        return plugin.getConfig().getBoolean(
-                "protection." + setting,
-                true);
+        return plugin.getConfig()
+                .getBoolean(
+                        "protection."
+                                + setting,
+                        true);
     }
 
     private boolean canBypass(
             Player player) {
-        String permission = plugin.getConfig().getString(
-                "protection.bypass-permission",
-                "skyfoundry.admin.bypass");
+        String permission = plugin.getConfig()
+                .getString(
+                        "protection.bypass-permission",
+                        "skyfoundry.admin.bypass");
 
-        if (permission == null
-                || permission.isBlank()) {
-            return false;
-        }
-
-        return player.hasPermission(
-                permission);
+        return permission != null
+                && !permission.isBlank()
+                && player.hasPermission(
+                        permission);
     }
 
     private void sendProtectedMessage(
             Player player) {
-        String prefix = plugin.getConfig().getString(
-                "messages.prefix",
-                "<gold><bold>⚙ SKYFOUNDRY</bold></gold> <dark_gray>┃</dark_gray> ");
+        String prefix = plugin.getConfig()
+                .getString(
+                        "messages.prefix",
+                        "<gold><bold>⚙ SKYFOUNDRY</bold></gold> <dark_gray>┃</dark_gray> ");
 
-        String message = plugin.getConfig().getString(
-                "messages.island-protected",
-                "<red>You cannot do that here.</red>");
+        String message = plugin.getConfig()
+                .getString(
+                        "messages.island-protected",
+                        "<red>You cannot do that here.</red>");
 
         player.sendRichMessage(
                 prefix + message);

@@ -26,25 +26,23 @@ world:
 # ------------------------------------------------------------
 
 islands:
-  # Distance in blocks between the center of each island.
   spacing: 500
-
-  # Starting size of an island's protected area.
   size: 50
-
-  # Y level where starter islands are pasted.
   creation-y: 100
 
-  # Whether each player may only own one island.
-  one-per-player: true
+  # Includes the owner.
+  member-limit: 5
 
-  # Player spawn position relative to the schematic paste origin.
   spawn-offset:
     x: 0.5
     y: 3.0
     z: 0.5
     yaw: 0.0
     pitch: 0.0
+
+invites:
+  # Invitations survive restarts but expire after this many seconds.
+  timeout-seconds: 120
 
 # ------------------------------------------------------------
 # Starter Schematic
@@ -78,24 +76,13 @@ schematic:
 protection:
   enabled: true
 
-  # Prevent unauthorized players from breaking blocks.
   block-break: true
-
-  # Prevent unauthorized players from placing blocks.
   block-place: true
-
-  # Protect block interactions such as chests, doors,
-  # buttons, levers, furnaces, machines, etc.
   interaction: true
-
-  # Protect entities such as animals, armor stands,
-  # item frames, paintings, minecarts, etc.
   entities: true
 
-  # Prevent building in the void between islands.
   prevent-building-outside-islands: true
 
-  # Players with this permission ignore island protection.
   bypass-permission: "skyfoundry.admin.bypass"
 
 # ------------------------------------------------------------
@@ -114,18 +101,12 @@ teleport:
 # ------------------------------------------------------------
 
 deletion:
-  # Require the player to confirm before deleting an island.
   require-confirmation: true
-
-  # Number of seconds before a deletion confirmation expires.
   confirmation-timeout-seconds: 30
+  positions-per-tick: 25000
 
-  # Number of blocks checked/cleared per tick.
-  # Higher = faster deletion, but heavier server ticks.
-  blocks-per-tick: 25000
-
-  # World players are sent to before their island is deleted.
-  # If this world cannot be found, SkyFoundry uses the first non-island world.
+  # Players are sent here when an island is deleted
+  # or when they leave an island.
   teleport-world: "world"
 
 # ------------------------------------------------------------
@@ -168,6 +149,35 @@ messages:
   island-delete-failed: "<red>Something went wrong while deleting your island.</red>"
 
   island-protected: "<red>You cannot do that here.</red>"
+
+  sethome-success: "<green>Your island home has been updated.</green>"
+  sethome-outside-island: "<red>You must be standing inside your island to set your home.</red>"
+  sethome-failed: "<red>Could not set your island home.</red>"
+
+  player-not-found: "<red>That player is not online.</red>"
+
+  invite-no-permission: "<red>Your island role cannot invite players.</red>"
+  invite-self: "<red>You cannot invite yourself.</red>"
+  invite-target-has-island: "<red>That player is already part of an island.</red>"
+  invite-sent: "<green>Island invitation sent.</green>"
+  invite-received: "<yellow>{player}</yellow> invited you to their island. Run <gold>/island accept</gold> to join."
+  invite-failed: "<red>That player could not be invited.</red>"
+  invite-none: "<red>You do not have a valid island invitation.</red>"
+  invite-accepted: "<green>You joined the island.</green>"
+  invite-accept-failed: "<red>Could not join the island.</red>"
+
+  owner-cannot-leave: "<red>Island owners must delete the island instead.</red>"
+  island-left: "<green>You left the island.</green>"
+  leave-failed: "<red>Could not leave the island.</red>"
+
+  role-no-permission: "<red>Only the island owner can change member roles.</red>"
+  role-change-failed: "<red>Could not change that player's island role.</red>"
+  role-changed: "<green>{player}'s role is now <yellow>{role}</yellow>.</green>"
+  your-role-changed: "<green>Your island role is now <yellow>{role}</yellow>.</green>"
+
+  delete-owner-only: "<red>Only the island owner can delete the island.</red>"
+  island-already-deleting: "<yellow>Your island is already being deleted.</yellow>"
+  island-deleting: "<gray>Deleting your island...</gray>"
 
 # ------------------------------------------------------------
 # Debug

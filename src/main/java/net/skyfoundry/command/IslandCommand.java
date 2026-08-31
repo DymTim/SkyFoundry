@@ -3,6 +3,7 @@ package net.skyfoundry.command;
 import net.skyfoundry.SkyFoundry;
 import net.skyfoundry.island.Island;
 import net.skyfoundry.island.IslandManager;
+import net.skyfoundry.island.IslandRole;
 import net.skyfoundry.schematic.LoadedSchematic;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -13,21 +14,24 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 
-public final class IslandCommand implements CommandExecutor {
+public final class IslandCommand
+                implements CommandExecutor {
 
         private final SkyFoundry plugin;
         private final IslandManager islandManager;
 
-        private final Map<UUID, Long> deletionConfirmations = new HashMap<>();
+        private final Map<UUID, Long> deletionConfirmations = new ConcurrentHashMap<>();
 
-        private final Map<UUID, Boolean> creatingIslands = new HashMap<>();
+        private final Set<UUID> creatingIslands = ConcurrentHashMap.newKeySet();
 
-        private final Map<UUID, Boolean> deletingIslands = new HashMap<>();
+        private final Set<UUID> deletingIslands = ConcurrentHashMap.newKeySet();
 
         public IslandCommand(
                         SkyFoundry plugin,
@@ -52,76 +56,114 @@ public final class IslandCommand implements CommandExecutor {
                 }
 
                 if (args.length == 0) {
-                        if (islandManager.hasIsland(player.getUniqueId())) {
-                                teleportHome(player);
+                        if (islandManager.hasIsland(
+                                        player.getUniqueId())) {
+                                teleportHome(
+                                                player);
+
                         } else {
-                                player.sendRichMessage(
-                                                "<gray>Usage: <gold>/island create</gold>");
+                                sendUsage(
+                                                player);
                         }
 
                         return true;
                 }
 
                 switch (args[0].toLowerCase()) {
-                        case "create" -> handleCreate(player);
-                        case "home" -> teleportHome(player);
-                        case "delete" -> handleDelete(player, args);
-                        default -> player.sendRichMessage(
-                                        "<gray>Usage: <gold>/island create</gold>, "
-                                                        + "<gold>/island home</gold>, "
-                                                        + "<gold>/island delete</gold>");
+                        case "create" ->
+                                handleCreate(
+                                                player);
+
+                        case "home" ->
+                                teleportHome(
+                                                player);
+
+                        case "sethome" ->
+                                handleSetHome(
+                                                player);
+
+                        case "invite" ->
+                                handleInvite(
+                                                player,
+                                                args);
+
+                        case "accept" ->
+                                handleAccept(
+                                                player);
+
+                        case "leave" ->
+                                handleLeave(
+                                                player);
+
+                        case "role" ->
+                                handleRole(
+                                                player,
+                                                args);
+
+                        case "delete" ->
+                                handleDelete(
+                                                player,
+                                                args);
+
+                        default ->
+                                sendUsage(
+                                                player);
                 }
 
                 return true;
         }
 
-        private void handleCreate(Player player) {
+        private void handleCreate(
+                        Player player) {
                 UUID uuid = player.getUniqueId();
 
-                if (islandManager.hasIsland(uuid)) {
+                if (islandManager.hasIsland(
+                                uuid)) {
                         sendMessage(
                                         player,
                                         "messages.island-already-exists",
-                                        "<red>You already own an island.</red>");
+                                        "<red>You are already part of an island.</red>");
 
                         return;
                 }
 
-                if (creatingIslands.containsKey(uuid)) {
+                if (!creatingIslands.add(
+                                uuid)) {
                         return;
                 }
-
-                creatingIslands.put(
-                                uuid,
-                                true);
 
                 plugin.getSchematicManager()
                                 .loadStarterSchematic()
-                                .thenAccept(schematic -> Bukkit
-                                                .getScheduler()
-                                                .runTask(
-                                                                plugin,
-                                                                () -> createIslandRecord(
-                                                                                player,
-                                                                                schematic)))
-                                .exceptionally(exception -> {
-                                        creatingIslands.remove(uuid);
+                                .thenAccept(
+                                                schematic -> Bukkit.getScheduler()
+                                                                .runTask(
+                                                                                plugin,
+                                                                                () -> createIslandRecord(
+                                                                                                player,
+                                                                                                schematic)))
+                                .exceptionally(
+                                                exception -> {
+                                                        creatingIslands.remove(
+                                                                        uuid);
 
-                                        plugin.getLogger().severe(
-                                                        "Failed to load starter schematic for "
-                                                                        + player.getName()
-                                                                        + ": "
-                                                                        + getRootMessage(exception));
+                                                        plugin.getLogger()
+                                                                        .severe(
+                                                                                        "Failed to load starter schematic for "
+                                                                                                        + player.getName()
+                                                                                                        + ": "
+                                                                                                        + getRootMessage(
+                                                                                                                        exception));
 
-                                        Bukkit.getScheduler().runTask(
-                                                        plugin,
-                                                        () -> sendMessage(
-                                                                        player,
-                                                                        "messages.island-create-failed",
-                                                                        "<red>Something went wrong while creating your island.</red>"));
+                                                        Bukkit.getScheduler()
+                                                                        .runTask(
+                                                                                        plugin,
+                                                                                        () -> sendMessage(
+                                                                                                        player,
+                                                                                                        "messages.island-create-failed",
+                                                                                                        "<red>Something went wrong while creating your island.</red>"));
 
-                                        return null;
-                                });
+                                                        return null;
+                                                });
         }
 
         private void createIslandRecord(
@@ -130,17 +172,21 @@ public final class IslandCommand implements CommandExecutor {
                 UUID uuid = player.getUniqueId();
 
                 if (!player.isOnline()) {
-                        creatingIslands.remove(uuid);
+                        creatingIslands.remove(
+                                        uuid);
+
                         return;
                 }
 
-                if (islandManager.hasIsland(uuid)) {
-                        creatingIslands.remove(uuid);
+                if (islandManager.hasIsland(
+                                uuid)) {
+                        creatingIslands.remove(
+                                        uuid);
 
                         sendMessage(
                                         player,
                                         "messages.island-already-exists",
-                                        "<red>You already own an island.</red>");
+                                        "<red>You are already part of an island.</red>");
 
                         return;
                 }
@@ -150,14 +196,17 @@ public final class IslandCommand implements CommandExecutor {
                 try {
                         island = islandManager.createIsland(
                                         uuid);
-                } catch (SQLException exception) {
-                        creatingIslands.remove(uuid);
 
-                        plugin.getLogger().severe(
-                                        "Failed to create island record for "
-                                                        + player.getName()
-                                                        + ": "
-                                                        + exception.getMessage());
+                } catch (SQLException exception) {
+                        creatingIslands.remove(
+                                        uuid);
+
+                        plugin.getLogger()
+                                        .severe(
+                                                        "Failed to create island record for "
+                                                                        + player.getName()
+                                                                        + ": "
+                                                                        + exception.getMessage());
 
                         sendMessage(
                                         player,
@@ -171,50 +220,66 @@ public final class IslandCommand implements CommandExecutor {
                                 .paste(
                                                 island,
                                                 schematic)
-                                .thenRun(() -> {
-                                        creatingIslands.remove(uuid);
+                                .thenRun(
+                                                () -> {
+                                                        creatingIslands.remove(
+                                                                        uuid);
 
-                                        if (!player.isOnline()) {
-                                                return;
-                                        }
+                                                        if (!player.isOnline()) {
+                                                                return;
+                                                        }
 
-                                        sendMessage(
-                                                        player,
-                                                        "messages.island-created",
-                                                        "<green>Your island has been created.</green>");
+                                                        sendMessage(
+                                                                        player,
+                                                                        "messages.island-created",
+                                                                        "<green>Your island has been created.</green>");
 
-                                        teleportHome(player);
-                                })
-                                .exceptionally(exception -> {
-                                        creatingIslands.remove(uuid);
+                                                        teleportHome(
+                                                                        player);
+                                                })
+                                .exceptionally(
+                                                exception -> {
+                                                        creatingIslands.remove(
+                                                                        uuid);
 
-                                        plugin.getLogger().severe(
-                                                        "Failed to paste starter schematic for "
-                                                                        + player.getName()
-                                                                        + ": "
-                                                                        + getRootMessage(exception));
+                                                        plugin.getLogger()
+                                                                        .severe(
+                                                                                        "Failed to paste starter schematic for "
+                                                                                                        + player.getName()
+                                                                                                        + ": "
+                                                                                                        + getRootMessage(
+                                                                                                                        exception));
 
-                                        if (player.isOnline()) {
-                                                sendMessage(
-                                                                player,
-                                                                "messages.island-create-failed",
-                                                                "<red>Something went wrong while creating your island.</red>");
-                                        }
+                                                        Bukkit.getScheduler()
+                                                                        .runTask(
+                                                                                        plugin,
+                                                                                        () -> {
+                                                                                                islandManager
+                                                                                                                .deleteIsland(
+                                                                                                                                uuid);
 
-                                        return null;
-                                });
+                                                                                                if (player.isOnline()) {
+                                                                                                        sendMessage(
+                                                                                                                        player,
+                                                                                                                        "messages.island-create-failed",
+                                                                                                                        "<red>Something went wrong while creating your island.</red>");
+                                                                                                }
+                                                                                        });
+
+                                                        return null;
+                                                });
         }
 
-        private void teleportHome(Player player) {
-                Island island = islandManager
-                                .getIsland(player.getUniqueId())
-                                .orElse(null);
+        private void teleportHome(
+                        Player player) {
+                Location home = islandManager.getHome(
+                                player.getUniqueId());
 
-                if (island == null) {
+                if (home == null) {
                         sendMessage(
                                         player,
                                         "messages.island-not-found",
-                                        "<red>You do not have an island.</red>");
+                                        "<red>You are not part of an island.</red>");
 
                         return;
                 }
@@ -224,10 +289,407 @@ public final class IslandCommand implements CommandExecutor {
                                 "messages.teleporting",
                                 "<gray>Teleporting to your island...</gray>");
 
-                Location home = island.getHome();
-
                 player.teleport(
                                 home);
+        }
+
+        private void handleSetHome(
+                        Player player) {
+                UUID uuid = player.getUniqueId();
+
+                Island island = islandManager
+                                .getIsland(
+                                                uuid)
+                                .orElse(null);
+
+                if (island == null) {
+                        sendMessage(
+                                        player,
+                                        "messages.island-not-found",
+                                        "<red>You are not part of an island.</red>");
+
+                        return;
+                }
+
+                if (!island.contains(
+                                player.getLocation(),
+                                Math.max(
+                                                1,
+                                                plugin.getConfig().getInt(
+                                                                "islands.size",
+                                                                50)))) {
+                        sendMessage(
+                                        player,
+                                        "messages.sethome-outside-island",
+                                        "<red>You must be standing inside your island to set your home.</red>");
+
+                        return;
+                }
+
+                try {
+                        if (!islandManager.setHome(
+                                        uuid,
+                                        player.getLocation())) {
+                                sendMessage(
+                                                player,
+                                                "messages.sethome-failed",
+                                                "<red>Could not set your island home.</red>");
+
+                                return;
+                        }
+
+                        sendMessage(
+                                        player,
+                                        "messages.sethome-success",
+                                        "<green>Your island home has been updated.</green>");
+
+                } catch (SQLException exception) {
+                        plugin.getLogger()
+                                        .severe(
+                                                        "Failed to set island home for "
+                                                                        + player.getName()
+                                                                        + ": "
+                                                                        + exception.getMessage());
+
+                        sendMessage(
+                                        player,
+                                        "messages.sethome-failed",
+                                        "<red>Could not set your island home.</red>");
+                }
+        }
+
+        private void handleInvite(
+                        Player player,
+                        String[] args) {
+                if (args.length < 2) {
+                        player.sendRichMessage(
+                                        getPrefix()
+                                                        + "<gray>Usage: <gold>/island invite <player></gold></gray>");
+
+                        return;
+                }
+
+                IslandRole role = islandManager
+                                .getRole(
+                                                player.getUniqueId())
+                                .orElse(null);
+
+                if (role == null) {
+                        sendMessage(
+                                        player,
+                                        "messages.island-not-found",
+                                        "<red>You are not part of an island.</red>");
+
+                        return;
+                }
+
+                if (!role.canInvite()) {
+                        sendMessage(
+                                        player,
+                                        "messages.invite-no-permission",
+                                        "<red>Your island role cannot invite players.</red>");
+
+                        return;
+                }
+
+                Player target = Bukkit.getPlayerExact(
+                                args[1]);
+
+                if (target == null) {
+                        sendMessage(
+                                        player,
+                                        "messages.player-not-found",
+                                        "<red>That player is not online.</red>");
+
+                        return;
+                }
+
+                if (target.getUniqueId()
+                                .equals(
+                                                player.getUniqueId())) {
+
+                        sendMessage(
+                                        player,
+                                        "messages.invite-self",
+                                        "<red>You cannot invite yourself.</red>");
+
+                        return;
+                }
+
+                if (islandManager.hasIsland(
+                                target.getUniqueId())) {
+                        sendMessage(
+                                        player,
+                                        "messages.invite-target-has-island",
+                                        "<red>That player is already part of an island.</red>");
+
+                        return;
+                }
+
+                try {
+                        if (!islandManager.invite(
+                                        player.getUniqueId(),
+                                        target.getUniqueId())) {
+                                sendMessage(
+                                                player,
+                                                "messages.invite-failed",
+                                                "<red>That player could not be invited.</red>");
+
+                                return;
+                        }
+
+                        sendMessage(
+                                        player,
+                                        "messages.invite-sent",
+                                        "<green>Island invitation sent.</green>");
+
+                        String invited = plugin.getConfig()
+                                        .getString(
+                                                        "messages.invite-received",
+                                                        "<yellow>{player}</yellow> invited you to their island. Run <gold>/island accept</gold> to join.");
+
+                        invited = invited.replace(
+                                        "{player}",
+                                        player.getName());
+
+                        target.sendRichMessage(
+                                        getPrefix()
+                                                        + invited);
+
+                } catch (SQLException exception) {
+                        plugin.getLogger()
+                                        .severe(
+                                                        "Failed to create island invite: "
+                                                                        + exception.getMessage());
+
+                        sendMessage(
+                                        player,
+                                        "messages.invite-failed",
+                                        "<red>That player could not be invited.</red>");
+                }
+        }
+
+        private void handleAccept(
+                        Player player) {
+                if (islandManager.hasIsland(
+                                player.getUniqueId())) {
+                        sendMessage(
+                                        player,
+                                        "messages.island-already-exists",
+                                        "<red>You are already part of an island.</red>");
+
+                        return;
+                }
+
+                try {
+                        Optional<Island> island = islandManager.acceptLatestInvite(
+                                        player.getUniqueId());
+
+                        if (island.isEmpty()) {
+                                sendMessage(
+                                                player,
+                                                "messages.invite-none",
+                                                "<red>You do not have a valid island invitation.</red>");
+
+                                return;
+                        }
+
+                        sendMessage(
+                                        player,
+                                        "messages.invite-accepted",
+                                        "<green>You joined the island.</green>");
+
+                        teleportHome(
+                                        player);
+
+                } catch (SQLException exception) {
+                        plugin.getLogger()
+                                        .severe(
+                                                        "Failed to accept island invite for "
+                                                                        + player.getName()
+                                                                        + ": "
+                                                                        + exception.getMessage());
+
+                        sendMessage(
+                                        player,
+                                        "messages.invite-accept-failed",
+                                        "<red>Could not join the island.</red>");
+                }
+        }
+
+        private void handleLeave(
+                        Player player) {
+                IslandRole role = islandManager
+                                .getRole(
+                                                player.getUniqueId())
+                                .orElse(null);
+
+                if (role == null) {
+                        sendMessage(
+                                        player,
+                                        "messages.island-not-found",
+                                        "<red>You are not part of an island.</red>");
+
+                        return;
+                }
+
+                if (role == IslandRole.OWNER) {
+                        sendMessage(
+                                        player,
+                                        "messages.owner-cannot-leave",
+                                        "<red>Island owners must delete the island instead.</red>");
+
+                        return;
+                }
+
+                try {
+                        if (!islandManager.leaveIsland(
+                                        player.getUniqueId())) {
+                                sendMessage(
+                                                player,
+                                                "messages.leave-failed",
+                                                "<red>Could not leave the island.</red>");
+
+                                return;
+                        }
+
+                        player.teleport(
+                                        islandManager.getSafeTeleportLocation());
+
+                        sendMessage(
+                                        player,
+                                        "messages.island-left",
+                                        "<green>You left the island.</green>");
+
+                } catch (SQLException exception) {
+                        plugin.getLogger()
+                                        .severe(
+                                                        "Failed to remove island member "
+                                                                        + player.getName()
+                                                                        + ": "
+                                                                        + exception.getMessage());
+
+                        sendMessage(
+                                        player,
+                                        "messages.leave-failed",
+                                        "<red>Could not leave the island.</red>");
+                }
+        }
+
+        private void handleRole(
+                        Player player,
+                        String[] args) {
+                if (args.length < 3) {
+                        player.sendRichMessage(
+                                        getPrefix()
+                                                        + "<gray>Usage: <gold>/island role <player> <member|co_owner></gold></gray>");
+
+                        return;
+                }
+
+                IslandRole actorRole = islandManager
+                                .getRole(
+                                                player.getUniqueId())
+                                .orElse(null);
+
+                if (actorRole == null
+                                || !actorRole.canChangeRoles()) {
+
+                        sendMessage(
+                                        player,
+                                        "messages.role-no-permission",
+                                        "<red>Only the island owner can change member roles.</red>");
+
+                        return;
+                }
+
+                Player target = Bukkit.getPlayerExact(
+                                args[1]);
+
+                if (target == null) {
+                        sendMessage(
+                                        player,
+                                        "messages.player-not-found",
+                                        "<red>That player is not online.</red>");
+
+                        return;
+                }
+
+                IslandRole newRole;
+
+                switch (args[2].toLowerCase()) {
+                        case "member" ->
+                                newRole = IslandRole.MEMBER;
+
+                        case "co_owner",
+                                        "co-owner",
+                                        "coowner" ->
+                                newRole = IslandRole.CO_OWNER;
+
+                        default -> {
+                                player.sendRichMessage(
+                                                getPrefix()
+                                                                + "<gray>Role must be <gold>member</gold> or <gold>co_owner</gold>.</gray>");
+
+                                return;
+                        }
+                }
+
+                try {
+                        if (!islandManager.setRole(
+                                        player.getUniqueId(),
+                                        target.getUniqueId(),
+                                        newRole)) {
+                                sendMessage(
+                                                player,
+                                                "messages.role-change-failed",
+                                                "<red>Could not change that player's island role.</red>");
+
+                                return;
+                        }
+
+                        String message = plugin.getConfig()
+                                        .getString(
+                                                        "messages.role-changed",
+                                                        "<green>{player}'s role is now <yellow>{role}</yellow>.</green>");
+
+                        message = message.replace(
+                                        "{player}",
+                                        target.getName())
+                                        .replace(
+                                                        "{role}",
+                                                        formatRole(
+                                                                        newRole));
+
+                        player.sendRichMessage(
+                                        getPrefix()
+                                                        + message);
+
+                        String targetMessage = plugin.getConfig()
+                                        .getString(
+                                                        "messages.your-role-changed",
+                                                        "<green>Your island role is now <yellow>{role}</yellow>.</green>");
+
+                        targetMessage = targetMessage.replace(
+                                        "{role}",
+                                        formatRole(
+                                                        newRole));
+
+                        target.sendRichMessage(
+                                        getPrefix()
+                                                        + targetMessage);
+
+                } catch (SQLException exception) {
+                        plugin.getLogger()
+                                        .severe(
+                                                        "Failed to update island role: "
+                                                                        + exception.getMessage());
+
+                        sendMessage(
+                                        player,
+                                        "messages.role-change-failed",
+                                        "<red>Could not change that player's island role.</red>");
+                }
         }
 
         private void handleDelete(
@@ -235,26 +697,43 @@ public final class IslandCommand implements CommandExecutor {
                         String[] args) {
                 UUID uuid = player.getUniqueId();
 
-                if (!islandManager.hasIsland(uuid)) {
+                IslandRole role = islandManager
+                                .getRole(
+                                                uuid)
+                                .orElse(null);
+
+                if (role == null) {
                         sendMessage(
                                         player,
                                         "messages.island-not-found",
-                                        "<red>You do not have an island.</red>");
+                                        "<red>You are not part of an island.</red>");
 
                         return;
                 }
 
-                if (deletingIslands.containsKey(uuid)) {
-                        player.sendRichMessage(
-                                        getPrefix()
-                                                        + "<yellow>Your island is already being deleted.</yellow>");
+                if (!role.canDeleteIsland()) {
+                        sendMessage(
+                                        player,
+                                        "messages.delete-owner-only",
+                                        "<red>Only the island owner can delete the island.</red>");
 
                         return;
                 }
 
-                boolean confirmationRequired = plugin.getConfig().getBoolean(
-                                "deletion.require-confirmation",
-                                true);
+                if (deletingIslands.contains(
+                                uuid)) {
+                        sendMessage(
+                                        player,
+                                        "messages.island-already-deleting",
+                                        "<yellow>Your island is already being deleted.</yellow>");
+
+                        return;
+                }
+
+                boolean confirmationRequired = plugin.getConfig()
+                                .getBoolean(
+                                                "deletion.require-confirmation",
+                                                true);
 
                 if (!confirmationRequired) {
                         performDelete(
@@ -274,20 +753,20 @@ public final class IslandCommand implements CommandExecutor {
 
                 int timeoutSeconds = Math.max(
                                 1,
-                                plugin.getConfig().getInt(
-                                                "deletion.confirmation-timeout-seconds",
-                                                30));
-
-                long expiration = System.currentTimeMillis()
-                                + (timeoutSeconds * 1000L);
+                                plugin.getConfig()
+                                                .getInt(
+                                                                "deletion.confirmation-timeout-seconds",
+                                                                30));
 
                 deletionConfirmations.put(
                                 uuid,
-                                expiration);
+                                System.currentTimeMillis()
+                                                + timeoutSeconds * 1000L);
 
-                String message = plugin.getConfig().getString(
-                                "messages.island-delete-confirm",
-                                "<red>Run <gold>/island delete confirm</gold> within <yellow>{seconds}</yellow> seconds to permanently delete your island.</red>");
+                String message = plugin.getConfig()
+                                .getString(
+                                                "messages.island-delete-confirm",
+                                                "<red>Run <gold>/island delete confirm</gold> within <yellow>{seconds}</yellow> seconds to permanently delete your island.</red>");
 
                 message = message.replace(
                                 "{seconds}",
@@ -303,10 +782,12 @@ public final class IslandCommand implements CommandExecutor {
                         Player player) {
                 UUID uuid = player.getUniqueId();
 
-                Long expiration = deletionConfirmations.get(uuid);
+                Long expiration = deletionConfirmations.get(
+                                uuid);
 
                 if (expiration == null
                                 || System.currentTimeMillis() > expiration) {
+
                         deletionConfirmations.remove(
                                         uuid);
 
@@ -329,75 +810,101 @@ public final class IslandCommand implements CommandExecutor {
                         Player player) {
                 UUID uuid = player.getUniqueId();
 
-                if (deletingIslands.containsKey(uuid)) {
+                if (!deletingIslands.add(
+                                uuid)) {
                         return;
                 }
 
-                deletingIslands.put(
-                                uuid,
-                                true);
+                sendMessage(
+                                player,
+                                "messages.island-deleting",
+                                "<gray>Deleting your island...</gray>");
 
+                islandManager.deleteIsland(
+                                uuid).thenAccept(
+                                                deleted -> {
+                                                        deletingIslands.remove(
+                                                                        uuid);
+
+                                                        if (!player.isOnline()) {
+                                                                return;
+                                                        }
+
+                                                        if (deleted) {
+                                                                sendMessage(
+                                                                                player,
+                                                                                "messages.island-deleted",
+                                                                                "<green>Your island has been deleted.</green>");
+
+                                                        } else {
+                                                                sendMessage(
+                                                                                player,
+                                                                                "messages.island-delete-failed",
+                                                                                "<red>Something went wrong while deleting your island.</red>");
+                                                        }
+                                                })
+                                .exceptionally(
+                                                exception -> {
+                                                        deletingIslands.remove(
+                                                                        uuid);
+
+                                                        plugin.getLogger()
+                                                                        .severe(
+                                                                                        "Failed to delete island for "
+                                                                                                        + player.getName()
+                                                                                                        + ": "
+                                                                                                        + getRootMessage(
+                                                                                                                        exception));
+
+                                                        if (player.isOnline()) {
+                                                                sendMessage(
+                                                                                player,
+                                                                                "messages.island-delete-failed",
+                                                                                "<red>Something went wrong while deleting your island.</red>");
+                                                        }
+
+                                                        return null;
+                                                });
+        }
+
+        private String formatRole(
+                        IslandRole role) {
+                return switch (role) {
+                        case OWNER ->
+                                "Owner";
+
+                        case CO_OWNER ->
+                                "Co-Owner";
+
+                        case MEMBER ->
+                                "Member";
+                };
+        }
+
+        private void sendUsage(
+                        Player player) {
                 player.sendRichMessage(
                                 getPrefix()
-                                                + "<gray>Deleting your island...</gray>");
-
-                islandManager.deleteIsland(uuid)
-                                .thenAccept(deleted -> {
-                                        deletingIslands.remove(
-                                                        uuid);
-
-                                        Bukkit.getScheduler().runTask(
-                                                        plugin,
-                                                        () -> {
-                                                                if (!player.isOnline()) {
-                                                                        return;
-                                                                }
-
-                                                                if (deleted) {
-                                                                        sendMessage(
-                                                                                        player,
-                                                                                        "messages.island-deleted",
-                                                                                        "<green>Your island has been deleted.</green>");
-                                                                } else {
-                                                                        sendMessage(
-                                                                                        player,
-                                                                                        "messages.island-not-found",
-                                                                                        "<red>You do not have an island.</red>");
-                                                                }
-                                                        });
-                                })
-                                .exceptionally(exception -> {
-                                        deletingIslands.remove(
-                                                        uuid);
-
-                                        plugin.getLogger().severe(
-                                                        "Failed to delete island for "
-                                                                        + player.getName()
-                                                                        + ": "
-                                                                        + getRootMessage(exception));
-
-                                        Bukkit.getScheduler().runTask(
-                                                        plugin,
-                                                        () -> {
-                                                                if (player.isOnline()) {
-                                                                        sendMessage(
-                                                                                        player,
-                                                                                        "messages.island-delete-failed",
-                                                                                        "<red>Something went wrong while deleting your island.</red>");
-                                                                }
-                                                        });
-
-                                        return null;
-                                });
+                                                + "<gray>Commands: "
+                                                + "<gold>/island create</gold>, "
+                                                + "<gold>/island home</gold>, "
+                                                + "<gold>/island sethome</gold>, "
+                                                + "<gold>/island invite</gold>, "
+                                                + "<gold>/island accept</gold>, "
+                                                + "<gold>/island leave</gold>, "
+                                                + "<gold>/island role</gold>, "
+                                                + "<gold>/island delete</gold>"
+                                                + "</gray>");
         }
 
         private void sendMessage(
                         CommandSender sender,
                         String path,
                         String fallback) {
-                String message = plugin.getConfig().getString(
-                                path,
-                                fallback);
+                String message = plugin.getConfig()
+                                .getString(
+                                                path,
+                                                fallback);
 
                 sender.sendRichMessage(
                                 getPrefix()
@@ -405,9 +912,10 @@ public final class IslandCommand implements CommandExecutor {
         }
 
         private String getPrefix() {
-                return plugin.getConfig().getString(
-                                "messages.prefix",
-                                "<gold><bold>⚙ SKYFOUNDRY</bold></gold> <dark_gray>┃</dark_gray> ");
+                return plugin.getConfig()
+                                .getString(
+                                                "messages.prefix",
+                                                "<gold><bold>⚙ SKYFOUNDRY</bold></gold> <dark_gray>┃</dark_gray> ");
         }
 
         private String getRootMessage(
@@ -416,6 +924,7 @@ public final class IslandCommand implements CommandExecutor {
 
                 while (current instanceof CompletionException
                                 && current.getCause() != null) {
+
                         current = current.getCause();
                 }
 
@@ -423,6 +932,7 @@ public final class IslandCommand implements CommandExecutor {
 
                 if (message == null
                                 || message.isBlank()) {
+
                         return current
                                         .getClass()
                                         .getSimpleName();

@@ -14,29 +14,43 @@ public final class Database {
 
     private Connection connection;
 
-    public Database(SkyFoundry plugin) {
+    public Database(
+            SkyFoundry plugin) {
         this.plugin = plugin;
     }
 
-    public void initialize() throws SQLException {
-        String fileName = plugin.getConfig()
-                .getString(
-                        "storage.database-file",
-                        "skyfoundry.db");
+    public void connect()
+            throws SQLException {
+
+        if (!plugin.getDataFolder().exists()
+                && !plugin.getDataFolder().mkdirs()) {
+
+            throw new SQLException(
+                    "Could not create SkyFoundry plugin directory.");
+        }
+
+        String databaseFileName = plugin.getConfig().getString(
+                "storage.database-file",
+                "skyfoundry.db");
+
+        if (databaseFileName == null
+                || databaseFileName.isBlank()) {
+
+            databaseFileName = "skyfoundry.db";
+        }
 
         File databaseFile = new File(
                 plugin.getDataFolder(),
-                fileName);
+                databaseFileName);
+
+        String url = "jdbc:sqlite:"
+                + databaseFile.getAbsolutePath();
 
         connection = DriverManager.getConnection(
-                "jdbc:sqlite:" + databaseFile.getAbsolutePath());
+                url);
 
-        configureConnection();
-        createTables();
-    }
-
-    private void configureConnection() throws SQLException {
-        try (Statement statement = connection.createStatement()) {
+        try (
+                Statement statement = connection.createStatement()) {
             statement.execute(
                     "PRAGMA journal_mode=WAL;");
 
@@ -51,34 +65,110 @@ public final class Database {
         }
     }
 
-    private void createTables() throws SQLException {
-        String islandsTable = """
-                CREATE TABLE IF NOT EXISTS islands (
-                    island_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    owner_uuid TEXT NOT NULL UNIQUE,
-                    center_x INTEGER NOT NULL,
-                    center_z INTEGER NOT NULL,
-                    home_x REAL NOT NULL,
-                    home_y REAL NOT NULL,
-                    home_z REAL NOT NULL,
-                    home_yaw REAL NOT NULL DEFAULT 0,
-                    home_pitch REAL NOT NULL DEFAULT 0,
-                    created_at INTEGER NOT NULL
-                );
-                """;
+    public void initialize()
+            throws SQLException {
 
-        String centerIndex = """
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_islands_center
-                ON islands (center_x, center_z);
-                """;
+        try (
+                Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS islands (
+                        island_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        owner_uuid TEXT NOT NULL UNIQUE,
 
-        try (Statement statement = connection.createStatement()) {
-            statement.execute(islandsTable);
-            statement.execute(centerIndex);
+                        center_x INTEGER NOT NULL,
+                        center_z INTEGER NOT NULL,
+
+                        home_x REAL NOT NULL,
+                        home_y REAL NOT NULL,
+                        home_z REAL NOT NULL,
+                        home_yaw REAL NOT NULL DEFAULT 0,
+                        home_pitch REAL NOT NULL DEFAULT 0,
+
+                        created_at INTEGER NOT NULL
+                    );
+                    """);
+
+            statement.executeUpdate("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_islands_center
+                    ON islands (
+                        center_x,
+                        center_z
+                    );
+                    """);
+
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS island_members (
+                        island_id INTEGER NOT NULL,
+                        player_uuid TEXT NOT NULL UNIQUE,
+                        role TEXT NOT NULL,
+
+                        home_x REAL NOT NULL,
+                        home_y REAL NOT NULL,
+                        home_z REAL NOT NULL,
+                        home_yaw REAL NOT NULL DEFAULT 0,
+                        home_pitch REAL NOT NULL DEFAULT 0,
+
+                        joined_at INTEGER NOT NULL,
+
+                        PRIMARY KEY (
+                            island_id,
+                            player_uuid
+                        ),
+
+                        FOREIGN KEY (
+                            island_id
+                        )
+                        REFERENCES islands (
+                            island_id
+                        )
+                        ON DELETE CASCADE
+                    );
+                    """);
+
+            statement.executeUpdate("""
+                    CREATE INDEX IF NOT EXISTS idx_island_members_island
+                    ON island_members (
+                        island_id
+                    );
+                    """);
+
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS island_invites (
+                        island_id INTEGER NOT NULL,
+                        player_uuid TEXT NOT NULL,
+                        inviter_uuid TEXT NOT NULL,
+                        created_at INTEGER NOT NULL,
+
+                        PRIMARY KEY (
+                            island_id,
+                            player_uuid
+                        ),
+
+                        FOREIGN KEY (
+                            island_id
+                        )
+                        REFERENCES islands (
+                            island_id
+                        )
+                        ON DELETE CASCADE
+                    );
+                    """);
+
+            statement.executeUpdate("""
+                    CREATE INDEX IF NOT EXISTS idx_island_invites_player
+                    ON island_invites (
+                        player_uuid
+                    );
+                    """);
         }
     }
 
     public Connection getConnection() {
+        if (connection == null) {
+            throw new IllegalStateException(
+                    "Database has not been connected.");
+        }
+
         return connection;
     }
 
@@ -88,15 +178,14 @@ public final class Database {
         }
 
         try {
-            if (!connection.isClosed()) {
-                connection.close();
-            }
+            connection.close();
+
         } catch (SQLException exception) {
             plugin.getLogger().warning(
-                    "Failed to close SQLite database: "
+                    "Failed to close SQLite connection: "
                             + exception.getMessage());
-        } finally {
-            connection = null;
         }
+
+        connection = null;
     }
 }
