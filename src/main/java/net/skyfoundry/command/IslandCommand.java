@@ -4,6 +4,7 @@ import net.skyfoundry.SkyFoundry;
 import net.skyfoundry.island.Island;
 import net.skyfoundry.island.IslandManager;
 import net.skyfoundry.island.IslandRole;
+import net.skyfoundry.gui.IslandMenu;
 import net.skyfoundry.schematic.LoadedSchematic;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -35,6 +36,7 @@ public final class IslandCommand
 
         private final SkyFoundry plugin;
         private final IslandManager islandManager;
+        private final IslandMenu islandMenu;
 
         private final Map<UUID, Long> deletionConfirmations = new ConcurrentHashMap<>();
         private final Map<UUID, PendingTransfer> transferConfirmations = new ConcurrentHashMap<>();
@@ -46,9 +48,11 @@ public final class IslandCommand
 
         public IslandCommand(
                         SkyFoundry plugin,
-                        IslandManager islandManager) {
+                        IslandManager islandManager,
+                        IslandMenu islandMenu) {
                 this.plugin = plugin;
                 this.islandManager = islandManager;
+                this.islandMenu = islandMenu;
         }
 
         @Override
@@ -67,20 +71,15 @@ public final class IslandCommand
                 }
 
                 if (args.length == 0) {
-                        if (islandManager.hasIsland(
-                                        player.getUniqueId())) {
-                                teleportHome(
-                                                player);
-
-                        } else {
-                                sendUsage(
-                                                player);
-                        }
-
+                        islandMenu.open(player);
                         return true;
                 }
 
                 switch (args[0].toLowerCase()) {
+                        case "menu" ->
+                                islandMenu.open(
+                                                player);
+
                         case "create" ->
                                 handleCreate(
                                                 player);
@@ -1189,6 +1188,7 @@ public final class IslandCommand
                 player.sendRichMessage(
                                 getPrefix()
                                                 + "<gray>Commands: "
+                                                + "<gold>/island menu</gold>, "
                                                 + "<gold>/island create</gold>, "
                                                 + "<gold>/island home</gold>, "
                                                 + "<gold>/island info</gold>, "

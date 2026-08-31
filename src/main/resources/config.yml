@@ -148,6 +148,166 @@ island-info:
   created: "<gray>Created:</gray> <yellow>{created}</yellow>"
 
 # ------------------------------------------------------------
+# Island GUI
+# ------------------------------------------------------------
+
+gui:
+  main:
+    title: "<gold><bold>⚙ SKYFOUNDRY ISLAND</bold></gold>"
+
+    filler:
+      material: "GRAY_STAINED_GLASS_PANE"
+      name: " "
+
+    accents:
+      enabled: true
+      material: "ORANGE_STAINED_GLASS_PANE"
+      name: " "
+      slots: [0, 4, 8, 40]
+
+    buttons:
+      home:
+        slot: 12
+        material: "WHITE_BED"
+        name: "<yellow><bold>Island Home</bold></yellow>"
+        lore:
+          - "<gray>Teleport to your island home.</gray>"
+          - ""
+          - "<gold>Click to teleport.</gold>"
+
+      set-home:
+        slot: 14
+        material: "COMPASS"
+        name: "<yellow><bold>Set Home</bold></yellow>"
+        lore:
+          - "<gray>Set your personal island home</gray>"
+          - "<gray>to your current location.</gray>"
+          - ""
+          - "<gold>Click to set home.</gold>"
+
+      members:
+        slot: 20
+        material: "PLAYER_HEAD"
+        name: "<yellow><bold>Island Members</bold></yellow>"
+        lore:
+          - "<gray>View and manage island members.</gray>"
+          - ""
+          - "<gray>Members: <yellow>{members}</yellow>/<yellow>{limit}</yellow></gray>"
+          - "<gray>Your Role: <yellow>{role}</yellow></gray>"
+          - ""
+          - "<gold>Click to view members.</gold>"
+
+      info:
+        slot: 22
+        material: "BOOK"
+        name: "<yellow><bold>Island Information</bold></yellow>"
+        lore:
+          - "<gray>Owner: <yellow>{owner}</yellow></gray>"
+          - "<gray>Island ID: <yellow>#{id}</yellow></gray>"
+          - "<gray>Size: <yellow>{size}x{size}</yellow></gray>"
+          - "<gray>Center: <yellow>{x}, {z}</yellow></gray>"
+          - ""
+          - "<gold>Click for full information.</gold>"
+
+      invite:
+        slot: 24
+        material: "NAME_TAG"
+        name: "<yellow><bold>Invite Player</bold></yellow>"
+        lore:
+          - "<gray>Invite another player to</gray>"
+          - "<gray>join your island.</gray>"
+          - ""
+          - "<gold>Click for invite instructions.</gold>"
+
+      invite-locked:
+        slot: 24
+        material: "BARRIER"
+        name: "<red><bold>Invite Player</bold></red>"
+        lore:
+          - "<gray>Your island role cannot</gray>"
+          - "<gray>invite new members.</gray>"
+
+      upgrades:
+        slot: 30
+        material: "BEACON"
+        name: "<yellow><bold>Island Upgrades</bold></yellow>"
+        lore:
+          - "<gray>Expand and improve your island.</gray>"
+          - ""
+          - "<dark_gray>Coming soon.</dark_gray>"
+
+      settings:
+        slot: 32
+        material: "COMPARATOR"
+        name: "<yellow><bold>Island Settings</bold></yellow>"
+        lore:
+          - "<gray>Configure island options.</gray>"
+          - ""
+          - "<dark_gray>Coming soon.</dark_gray>"
+
+      danger-owner:
+        slot: 36
+        material: "TNT"
+        name: "<red><bold>Delete Island</bold></red>"
+        lore:
+          - "<gray>Permanently delete this island.</gray>"
+          - ""
+          - "<red>This action requires confirmation.</red>"
+
+      danger-member:
+        slot: 36
+        material: "OAK_DOOR"
+        name: "<red><bold>Leave Island</bold></red>"
+        lore:
+          - "<gray>Leave your current island.</gray>"
+          - ""
+          - "<red>Click to leave.</red>"
+
+      close:
+        slot: 44
+        material: "BARRIER"
+        name: "<red><bold>Close</bold></red>"
+        lore:
+          - "<gray>Close this menu.</gray>"
+
+  create:
+    title: "<gold><bold>⚙ CREATE ISLAND</bold></gold>"
+
+    filler:
+      material: "GRAY_STAINED_GLASS_PANE"
+      name: " "
+
+    accents:
+      enabled: true
+      material: "ORANGE_STAINED_GLASS_PANE"
+      name: " "
+      slots: [0, 4, 8, 40]
+
+    buttons:
+      create:
+        slot: 22
+        material: "GRASS_BLOCK"
+        name: "<gold><bold>Create Island</bold></gold>"
+        lore:
+          - "<gray>Create your SkyFoundry island</gray>"
+          - "<gray>and begin building your factory.</gray>"
+          - ""
+          - "<gold>Click to create.</gold>"
+
+      close:
+        slot: 44
+        material: "BARRIER"
+        name: "<red><bold>Close</bold></red>"
+        lore:
+          - "<gray>Close this menu.</gray>"
+
+  messages:
+    members-coming-soon: "<gray>The island members menu is coming next.</gray>"
+    invite-instructions: "<gray>Use <gold>/island invite <player></gold> to invite someone.</gray>"
+    upgrades-coming-soon: "<gray>Island upgrades are coming soon.</gray>"
+    settings-coming-soon: "<gray>Island settings are coming soon.</gray>"
+
+# ------------------------------------------------------------
 # Messages
 # ------------------------------------------------------------
 

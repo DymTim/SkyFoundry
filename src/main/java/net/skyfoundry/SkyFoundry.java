@@ -5,6 +5,8 @@ import net.skyfoundry.addon.AddonManager;
 import net.skyfoundry.addon.IslandAPIImpl;
 import net.skyfoundry.api.SkyFoundryAPI;
 import net.skyfoundry.command.IslandCommand;
+import net.skyfoundry.gui.IslandMenu;
+import net.skyfoundry.gui.IslandMenuListener;
 import net.skyfoundry.island.IslandManager;
 import net.skyfoundry.protection.IslandProtectionListener;
 import net.skyfoundry.schematic.SchematicManager;
@@ -66,9 +68,14 @@ public final class SkyFoundry extends JavaPlugin {
                                                 new IslandAPIImpl(islandManager),
                                                 new AddonAPIImpl(addonManager)));
 
-                IslandCommand islandCommand = new IslandCommand(
+                IslandMenu islandMenu = new IslandMenu(
                                 this,
                                 islandManager);
+
+                IslandCommand islandCommand = new IslandCommand(
+                                this,
+                                islandManager,
+                                islandMenu);
 
                 getCommand("island").setExecutor(
                                 islandCommand);
@@ -321,6 +328,14 @@ public final class SkyFoundry extends JavaPlugin {
                                 .getPluginManager()
                                 .registerEvents(
                                                 islandCommand,
+                                                this);
+
+                getServer()
+                                .getPluginManager()
+                                .registerEvents(
+                                                new IslandMenuListener(
+                                                                this,
+                                                                islandManager),
                                                 this);
         }
 }
