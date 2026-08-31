@@ -44,6 +44,9 @@ invites:
   # Invitations survive restarts but expire after this many seconds.
   timeout-seconds: 120
 
+transfer:
+  confirmation-timeout-seconds: 30
+
 # ------------------------------------------------------------
 # Starter Schematic
 # ------------------------------------------------------------
@@ -178,6 +181,25 @@ messages:
   delete-owner-only: "<red>Only the island owner can delete the island.</red>"
   island-already-deleting: "<yellow>Your island is already being deleted.</yellow>"
   island-deleting: "<gray>Deleting your island...</gray>"
+
+  transfer-owner-only: "<red>Only the island owner can transfer ownership.</red>"
+  transfer-self: "<red>You already own the island.</red>"
+  transfer-not-member: "<red>That player must already be a member of your island.</red>"
+  transfer-confirm: "<red>Run <gold>/island transfer confirm {player}</gold> within <yellow>{seconds}</yellow> seconds to transfer ownership.</red>"
+  transfer-confirm-expired: "<red>Your ownership transfer confirmation has expired.</red>"
+  transfer-confirm-mismatch: "<red>That does not match your pending ownership transfer.</red>"
+  transfer-failed: "<red>Could not transfer island ownership.</red>"
+  transfer-success: "<green>Island ownership has been transferred to <yellow>{player}</yellow>.</green>"
+  transfer-received: "<green>You are now the owner of this island.</green>"
+
+  kick-no-permission: "<red>Your island role cannot kick members.</red>"
+  kick-self: "<red>You cannot kick yourself.</red>"
+  kick-not-member: "<red>That player is not a member of your island.</red>"
+  kick-owner: "<red>The island owner cannot be kicked.</red>"
+  kick-role-too-high: "<red>Co-Owners cannot kick other Co-Owners.</red>"
+  kick-failed: "<red>Could not remove that island member.</red>"
+  kick-success: "<green>{player} has been removed from the island.</green>"
+  kicked: "<red>You have been removed from the island.</red>"
 
 # ------------------------------------------------------------
 # Debug

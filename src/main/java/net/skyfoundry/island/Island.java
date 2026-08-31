@@ -8,9 +8,12 @@ import java.util.UUID;
 public final class Island {
 
     private final long islandId;
-    private final UUID ownerUuid;
+
+    private UUID ownerUuid;
+
     private final int centerX;
     private final int centerZ;
+
     private final long createdAt;
 
     private Location home;
@@ -38,6 +41,11 @@ public final class Island {
         return ownerUuid;
     }
 
+    public void setOwnerUuid(
+            UUID ownerUuid) {
+        this.ownerUuid = ownerUuid;
+    }
+
     public int getCenterX() {
         return centerX;
     }
@@ -54,11 +62,14 @@ public final class Island {
         return home.clone();
     }
 
-    public void setHome(Location home) {
+    public void setHome(
+            Location home) {
         this.home = home.clone();
     }
 
-    public Location getCenter(World world, double y) {
+    public Location getCenter(
+            World world,
+            double y) {
         return new Location(
                 world,
                 centerX + 0.5,
@@ -66,27 +77,37 @@ public final class Island {
                 centerZ + 0.5);
     }
 
-    public boolean contains(Location location, int size) {
-        if (location.getWorld() == null || home.getWorld() == null) {
+    public boolean contains(
+            Location location,
+            int size) {
+        if (location.getWorld() == null
+                || home.getWorld() == null
+                || !location.getWorld().equals(
+                        home.getWorld())) {
             return false;
         }
 
-        if (!location.getWorld().equals(home.getWorld())) {
-            return false;
-        }
+        int minX = centerX
+                - (size / 2);
 
-        int minX = centerX - (size / 2);
-        int minZ = centerZ - (size / 2);
+        int minZ = centerZ
+                - (size / 2);
 
-        int maxX = minX + size - 1;
-        int maxZ = minZ + size - 1;
+        int maxX = minX
+                + size
+                - 1;
 
-        int blockX = location.getBlockX();
-        int blockZ = location.getBlockZ();
+        int maxZ = minZ
+                + size
+                - 1;
 
-        return blockX >= minX
-                && blockX <= maxX
-                && blockZ >= minZ
-                && blockZ <= maxZ;
+        double x = location.getX();
+
+        double z = location.getZ();
+
+        return x >= minX
+                && x < maxX + 1.0
+                && z >= minZ
+                && z < maxZ + 1.0;
     }
 }

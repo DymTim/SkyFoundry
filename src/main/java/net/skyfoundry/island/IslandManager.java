@@ -1444,4 +1444,279 @@ public final class IslandManager {
                         }
                 }
         }
+
+        public boolean transferOwnership(
+                        UUID currentOwnerUuid,
+                        UUID newOwnerUuid) throws SQLException {
+
+                if (currentOwnerUuid.equals(
+                                newOwnerUuid)) {
+                        return false;
+                }
+
+                Island island = islandsByPlayer.get(
+                                currentOwnerUuid);
+
+                Island newOwnerIsland = islandsByPlayer.get(
+                                newOwnerUuid);
+
+                IslandMember currentOwner = members.get(
+                                currentOwnerUuid);
+
+                IslandMember newOwner = members.get(
+                                newOwnerUuid);
+
+                if (island == null
+                                || newOwnerIsland == null
+                                || currentOwner == null
+                                || newOwner == null) {
+
+                        return false;
+                }
+
+                if (island.getIslandId() != newOwnerIsland.getIslandId()) {
+
+                        return false;
+                }
+
+                if (!island.getOwnerUuid()
+                                .equals(
+                                                currentOwnerUuid)) {
+
+                        return false;
+                }
+
+                if (!currentOwner
+                                .getRole()
+                                .canTransferOwnership()) {
+
+                        return false;
+                }
+
+                var connection = database.getConnection();
+
+                boolean previousAutoCommit = connection.getAutoCommit();
+
+                try {
+                        connection.setAutoCommit(
+                                        false);
+
+                        String updateIslandSql = """
+                                        UPDATE islands
+                                        SET
+                                            owner_uuid = ?,
+                                            home_x = ?,
+                                            home_y = ?,
+                                            home_z = ?,
+                                            home_yaw = ?,
+                                            home_pitch = ?
+                                        WHERE
+                                            island_id = ?
+                                            AND owner_uuid = ?;
+                                        """;
+
+                        Location newOwnerHome = newOwner.getHome();
+
+                        try (
+                                        PreparedStatement statement = connection.prepareStatement(
+                                                        updateIslandSql)) {
+                                statement.setString(
+                                                1,
+                                                newOwnerUuid.toString());
+
+                                statement.setDouble(
+                                                2,
+                                                newOwnerHome.getX());
+
+                                statement.setDouble(
+                                                3,
+                                                newOwnerHome.getY());
+
+                                statement.setDouble(
+                                                4,
+                                                newOwnerHome.getZ());
+
+                                statement.setFloat(
+                                                5,
+                                                newOwnerHome.getYaw());
+
+                                statement.setFloat(
+                                                6,
+                                                newOwnerHome.getPitch());
+
+                                statement.setLong(
+                                                7,
+                                                island.getIslandId());
+
+                                statement.setString(
+                                                8,
+                                                currentOwnerUuid.toString());
+
+                                int changed = statement.executeUpdate();
+
+                                if (changed != 1) {
+                                        connection.rollback();
+
+                                        return false;
+                                }
+                        }
+
+                        String updateRoleSql = """
+                                        UPDATE island_members
+                                        SET role = ?
+                                        WHERE player_uuid = ?;
+                                        """;
+
+                        try (
+                                        PreparedStatement statement = connection.prepareStatement(
+                                                        updateRoleSql)) {
+                                statement.setString(
+                                                1,
+                                                IslandRole.CO_OWNER.name());
+
+                                statement.setString(
+                                                2,
+                                                currentOwnerUuid.toString());
+
+                                statement.executeUpdate();
+
+                                statement.setString(
+                                                1,
+                                                IslandRole.OWNER.name());
+
+                                statement.setString(
+                                                2,
+                                                newOwnerUuid.toString());
+
+                                statement.executeUpdate();
+                        }
+
+                        connection.commit();
+
+                        island.setOwnerUuid(
+                                        newOwnerUuid);
+
+                        island.setHome(
+                                        newOwnerHome);
+
+                        currentOwner.setRole(
+                                        IslandRole.CO_OWNER);
+
+                        newOwner.setRole(
+                                        IslandRole.OWNER);
+
+                        return true;
+
+                } catch (SQLException exception) {
+                        connection.rollback();
+
+                        throw exception;
+
+                } finally {
+                        connection.setAutoCommit(
+                                        previousAutoCommit);
+                }
+        }
+
+        public boolean kickMember(
+                        UUID actorUuid,
+                        UUID targetUuid) throws SQLException {
+
+                if (actorUuid.equals(
+                                targetUuid)) {
+                        return false;
+                }
+
+                Island actorIsland = islandsByPlayer.get(
+                                actorUuid);
+
+                Island targetIsland = islandsByPlayer.get(
+                                targetUuid);
+
+                IslandMember actor = members.get(
+                                actorUuid);
+
+                IslandMember target = members.get(
+                                targetUuid);
+
+                if (actorIsland == null
+                                || targetIsland == null
+                                || actor == null
+                                || target == null) {
+
+                        return false;
+                }
+
+                if (actorIsland.getIslandId() != targetIsland.getIslandId()) {
+
+                        return false;
+                }
+
+                if (!actor.getRole()
+                                .canKick()) {
+
+                        return false;
+                }
+
+                if (target.getRole() == IslandRole.OWNER) {
+
+                        return false;
+                }
+
+                if (actor.getRole() == IslandRole.CO_OWNER
+                                && target.getRole() != IslandRole.MEMBER) {
+
+                        return false;
+                }
+
+                String sql = """
+                                DELETE FROM island_members
+                                WHERE
+                                    island_id = ?
+                                    AND player_uuid = ?;
+                                """;
+
+                try (
+                                PreparedStatement statement = database
+                                                .getConnection()
+                                                .prepareStatement(
+                                                                sql)) {
+                        statement.setLong(
+                                        1,
+                                        actorIsland.getIslandId());
+
+                        statement.setString(
+                                        2,
+                                        targetUuid.toString());
+
+                        int changed = statement.executeUpdate();
+
+                        if (changed != 1) {
+                                return false;
+                        }
+                }
+
+                islandsByPlayer.remove(
+                                targetUuid);
+
+                members.remove(
+                                targetUuid);
+
+                Player targetPlayer = plugin.getServer()
+                                .getPlayer(
+                                                targetUuid);
+
+                if (targetPlayer != null
+                                && targetPlayer.isOnline()) {
+
+                        if (actorIsland.contains(
+                                        targetPlayer.getLocation(),
+                                        getIslandSize())) {
+                                targetPlayer.teleport(
+                                                getSafeTeleportLocation());
+                        }
+                }
+
+                return true;
+        }
 }

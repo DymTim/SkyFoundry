@@ -19,7 +19,16 @@ public enum IslandRole {
                 || this == CO_OWNER;
     }
 
+    public boolean canKick() {
+        return this == OWNER
+                || this == CO_OWNER;
+    }
+
     public boolean canChangeRoles() {
+        return this == OWNER;
+    }
+
+    public boolean canTransferOwnership() {
         return this == OWNER;
     }
 
