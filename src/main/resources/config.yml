@@ -78,17 +78,25 @@ schematic:
 protection:
   enabled: true
 
-  # Prevent players from breaking blocks outside islands
-  # they are allowed to modify.
+  # Prevent unauthorized players from breaking blocks.
   block-break: true
 
-  # Prevent players from placing blocks outside islands
-  # they are allowed to modify.
+  # Prevent unauthorized players from placing blocks.
   block-place: true
 
-  # Prevent unauthorized interaction with blocks such as
-  # chests, barrels, furnaces, buttons, doors, etc.
+  # Protect block interactions such as chests, doors,
+  # buttons, levers, furnaces, machines, etc.
   interaction: true
+
+  # Protect entities such as animals, armor stands,
+  # item frames, paintings, minecarts, etc.
+  entities: true
+
+  # Prevent building in the void between islands.
+  prevent-building-outside-islands: true
+
+  # Players with this permission ignore island protection.
+  bypass-permission: "skyfoundry.admin.bypass"
 
 # ------------------------------------------------------------
 # Teleportation
@@ -158,6 +166,8 @@ messages:
   island-delete-confirm-expired: "<red>Your island deletion confirmation has expired.</red>"
 
   island-delete-failed: "<red>Something went wrong while deleting your island.</red>"
+
+  island-protected: "<red>You cannot do that here.</red>"
 
 # ------------------------------------------------------------
 # Debug

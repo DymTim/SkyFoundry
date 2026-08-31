@@ -2,6 +2,7 @@ package net.skyfoundry;
 
 import net.skyfoundry.command.IslandCommand;
 import net.skyfoundry.island.IslandManager;
+import net.skyfoundry.protection.IslandProtectionListener;
 import net.skyfoundry.schematic.SchematicManager;
 import net.skyfoundry.storage.Database;
 import net.skyfoundry.world.VoidChunkGenerator;
@@ -54,6 +55,8 @@ public final class SkyFoundry extends JavaPlugin {
 
                 getCommand("island").setExecutor(
                                 new IslandCommand(this, islandManager));
+
+                registerListeners();
 
                 if (getConfig().getBoolean("debug.enabled", false)) {
                         logDebugInformation();
@@ -259,5 +262,15 @@ public final class SkyFoundry extends JavaPlugin {
 
         public SchematicManager getSchematicManager() {
                 return schematicManager;
+        }
+
+        private void registerListeners() {
+                getServer()
+                                .getPluginManager()
+                                .registerEvents(
+                                                new IslandProtectionListener(
+                                                                this,
+                                                                islandManager),
+                                                this);
         }
 }
