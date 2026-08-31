@@ -1,5 +1,9 @@
 package net.skyfoundry;
 
+import net.skyfoundry.addon.AddonAPIImpl;
+import net.skyfoundry.addon.AddonManager;
+import net.skyfoundry.addon.IslandAPIImpl;
+import net.skyfoundry.api.SkyFoundryAPI;
 import net.skyfoundry.command.IslandCommand;
 import net.skyfoundry.island.IslandManager;
 import net.skyfoundry.protection.IslandProtectionListener;
@@ -19,6 +23,7 @@ public final class SkyFoundry extends JavaPlugin {
         private Database database;
         private IslandManager islandManager;
         private SchematicManager schematicManager;
+        private AddonManager addonManager;
 
         @Override
         public void onEnable() {
@@ -53,6 +58,14 @@ public final class SkyFoundry extends JavaPlugin {
 
                 schematicManager = new SchematicManager(this);
 
+                addonManager = new AddonManager(this);
+
+                SkyFoundryAPI.initialize(
+                                new SkyFoundryAPI(
+                                                getPluginMeta().getVersion(),
+                                                new IslandAPIImpl(islandManager),
+                                                new AddonAPIImpl(addonManager)));
+
                 IslandCommand islandCommand = new IslandCommand(
                                 this,
                                 islandManager);
@@ -62,6 +75,14 @@ public final class SkyFoundry extends JavaPlugin {
 
                 registerListeners(
                                 islandCommand);
+
+                try {
+                        addonManager.loadAndEnableAddons();
+                } catch (RuntimeException exception) {
+                        getLogger().severe(
+                                        "Failed to initialize SkyFoundry addons: "
+                                                        + exception.getMessage());
+                }
 
                 if (getConfig().getBoolean("debug.enabled", false)) {
                         logDebugInformation();
@@ -75,6 +96,12 @@ public final class SkyFoundry extends JavaPlugin {
 
         @Override
         public void onDisable() {
+                if (addonManager != null) {
+                        addonManager.disableAddons();
+                }
+
+                SkyFoundryAPI.shutdown();
+
                 if (database != null) {
                         database.close();
                 }
@@ -243,6 +270,12 @@ public final class SkyFoundry extends JavaPlugin {
                 getLogger().info(
                                 "Loaded islands: "
                                                 + islandManager.getIslandCount());
+
+                if (addonManager != null) {
+                        getLogger().info(
+                                        "Discovered addons: "
+                                                        + SkyFoundryAPI.get().addons().getAddons().size());
+                }
         }
 
         private void disablePlugin() {
@@ -268,6 +301,10 @@ public final class SkyFoundry extends JavaPlugin {
 
         public SchematicManager getSchematicManager() {
                 return schematicManager;
+        }
+
+        public AddonManager getAddonManager() {
+                return addonManager;
         }
 
         private void registerListeners(

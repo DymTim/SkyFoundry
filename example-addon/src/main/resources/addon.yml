@@ -1,0 +1,6 @@
+name: SkyFoundryExample
+version: '${version}'
+main: net.skyfoundry.example.ExampleAddon
+api-version: 1
+depend: []
+softdepend: []

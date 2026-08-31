@@ -48,6 +48,17 @@ transfer:
   confirmation-timeout-seconds: 30
 
 # ------------------------------------------------------------
+# Addons
+# ------------------------------------------------------------
+
+addons:
+  # Whether SkyFoundry should scan and load addon JARs.
+  enabled: true
+
+  # Folder inside plugins/SkyFoundry/ used for addon JARs.
+  folder: "addons"
+
+# ------------------------------------------------------------
 # Starter Schematic
 # ------------------------------------------------------------
 

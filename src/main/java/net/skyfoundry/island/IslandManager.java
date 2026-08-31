@@ -1308,7 +1308,7 @@ public final class IslandManager {
                                 pitch);
         }
 
-        private int getIslandSize() {
+        public int getIslandSize() {
                 return Math.max(
                                 1,
                                 plugin.getConfig().getInt(

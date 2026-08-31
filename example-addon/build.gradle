@@ -1,10 +1,9 @@
 plugins {
     id 'java'
-    id 'com.gradleup.shadow' version '8.3.6'
 }
 
-group = 'net.skyfoundry'
-version = '0.2.0-SNAPSHOT'
+group = 'net.skyfoundry.example'
+version = '0.1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
@@ -13,19 +12,11 @@ repositories {
         name = 'papermc'
         url = 'https://repo.papermc.io/repository/maven-public/'
     }
-
-    maven {
-        name = 'Querz'
-        url = 'https://jitpack.io'
-    }
 }
 
 dependencies {
+    compileOnly files('../build/libs/SkyFoundry-0.2.0-SNAPSHOT.jar')
     compileOnly 'io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT'
-
-    implementation 'org.xerial:sqlite-jdbc:3.50.3.0'
-
-    implementation 'com.github.Querz:NBT:6.1'
 }
 
 java {
@@ -42,19 +33,7 @@ tasks.withType(JavaCompile).configureEach {
 processResources {
     inputs.property 'version', project.version
 
-    filesMatching('plugin.yml') {
+    filesMatching('addon.yml') {
         expand 'version': project.version
     }
-}
-
-shadowJar {
-    archiveBaseName = 'SkyFoundry'
-    archiveClassifier = ''
-
-    relocate 'org.sqlite', 'net.skyfoundry.libs.sqlite'
-    relocate 'net.querz', 'net.skyfoundry.libs.nbt'
-}
-
-build {
-    dependsOn shadowJar
 }
