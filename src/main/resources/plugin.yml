@@ -1,0 +1,6 @@
+name: SkyFoundry
+version: "${version}"
+main: net.skyfoundry.SkyFoundry
+api-version: "1.21"
+
+description: A lightweight custom SkyBlock core built for SkyFoundry.

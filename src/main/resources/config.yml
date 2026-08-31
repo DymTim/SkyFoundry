@@ -1,0 +1,144 @@
+# ============================================================
+# SkyFoundry Configuration
+# ============================================================
+
+# ------------------------------------------------------------
+# World
+# ------------------------------------------------------------
+
+world:
+  # Name of the SkyBlock world.
+  name: "skyfoundry"
+
+  # Minecraft environment used for the island world.
+  # Valid values:
+  # NORMAL
+  # NETHER
+  # THE_END
+  environment: "NORMAL"
+
+  # Whether the plugin should automatically create the
+  # island world if it does not already exist.
+  auto-create: true
+
+# ------------------------------------------------------------
+# Islands
+# ------------------------------------------------------------
+
+islands:
+  # Distance in blocks between the center of each island.
+  spacing: 500
+
+  # Starting size of an island's protected area.
+  size: 50
+
+  # Y level where starter islands are pasted.
+  creation-y: 100
+
+  # Whether each player may only own one island.
+  one-per-player: true
+
+# ------------------------------------------------------------
+# Starter Schematic
+# ------------------------------------------------------------
+
+schematic:
+  # Schematic located inside the plugin's data folder.
+  file: "starter.schem"
+
+  # Read and decode schematic data asynchronously.
+  #
+  # World block modification itself will still be scheduled
+  # safely because Bukkit world access is not generally
+  # thread-safe.
+  async-load: true
+
+  # Maximum number of block operations processed in one
+  # server tick when a schematic is pasted.
+  #
+  # Higher = faster islands, but potentially heavier ticks.
+  blocks-per-tick: 750
+
+  # Whether air stored inside the schematic should overwrite
+  # existing blocks.
+  paste-air: false
+
+# ------------------------------------------------------------
+# Island Protection
+# ------------------------------------------------------------
+
+protection:
+  enabled: true
+
+  # Prevent players from breaking blocks outside islands
+  # they are allowed to modify.
+  block-break: true
+
+  # Prevent players from placing blocks outside islands
+  # they are allowed to modify.
+  block-place: true
+
+  # Prevent unauthorized interaction with blocks such as
+  # chests, barrels, furnaces, buttons, doors, etc.
+  interaction: true
+
+# ------------------------------------------------------------
+# Teleportation
+# ------------------------------------------------------------
+
+teleport:
+  # Delay before /island home teleports the player.
+  delay-seconds: 0
+
+  # Cancel a delayed teleport if the player moves.
+  cancel-on-move: true
+
+# ------------------------------------------------------------
+# Island Deletion
+# ------------------------------------------------------------
+
+deletion:
+  # Require the player to confirm before deleting an island.
+  require-confirmation: true
+
+  # Number of seconds before a deletion confirmation expires.
+  confirmation-timeout-seconds: 30
+
+# ------------------------------------------------------------
+# Storage
+# ------------------------------------------------------------
+
+storage:
+  # SQLite database file stored inside plugins/SkyFoundry/.
+  database-file: "skyfoundry.db"
+
+# ------------------------------------------------------------
+# Messages
+# ------------------------------------------------------------
+
+messages:
+  prefix: "<gold><bold>⚙ SKYFOUNDRY</bold></gold> <dark_gray>┃</dark_gray> "
+
+  no-permission: "<red>You do not have permission to do that.</red>"
+
+  player-only: "<red>This command can only be used by a player.</red>"
+
+  island-created: "<green>Your island has been created.</green>"
+
+  island-already-exists: "<red>You already own an island.</red>"
+
+  island-not-found: "<red>You do not have an island.</red>"
+
+  island-deleted: "<green>Your island has been deleted.</green>"
+
+  teleporting: "<gray>Teleporting to your island...</gray>"
+
+  teleport-cancelled: "<red>Teleport cancelled because you moved.</red>"
+
+# ------------------------------------------------------------
+# Debug
+# ------------------------------------------------------------
+
+debug:
+  # Enables additional information in the server console.
+  enabled: false
