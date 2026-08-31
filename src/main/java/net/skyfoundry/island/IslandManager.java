@@ -74,11 +74,14 @@ public final class IslandManager {
 
                                 try {
                                         ownerUuid = UUID.fromString(
-                                                        resultSet.getString("owner_uuid"));
+                                                        resultSet.getString(
+                                                                        "owner_uuid"));
+
                                 } catch (IllegalArgumentException exception) {
                                         plugin.getLogger().warning(
                                                         "Skipping island with invalid owner UUID: "
-                                                                        + resultSet.getString("owner_uuid"));
+                                                                        + resultSet.getString(
+                                                                                        "owner_uuid"));
 
                                         continue;
                                 }
@@ -111,8 +114,8 @@ public final class IslandManager {
                                                 + " island(s).");
         }
 
-        public Island createIsland(UUID ownerUuid)
-                        throws SQLException {
+        public Island createIsland(
+                        UUID ownerUuid) throws SQLException {
 
                 Island existing = islands.get(ownerUuid);
 
@@ -185,8 +188,11 @@ public final class IslandManager {
                                         false);
                 }
 
-                return clearIsland(island)
-                                .thenApply(unused -> {
+                teleportPlayersOffIsland(
+                                island);
+
+                return clearIsland(
+                                island).thenApply(unused -> {
                                         try {
                                                 deleteIslandRecord(
                                                                 ownerUuid);
@@ -214,11 +220,11 @@ public final class IslandManager {
                                                 "islands.size",
                                                 50));
 
-                int blocksPerTick = Math.max(
+                int positionsPerTick = Math.max(
                                 1,
                                 plugin.getConfig().getInt(
-                                                "deletion.blocks-per-tick",
-                                                2000));
+                                                "deletion.positions-per-tick",
+                                                25000));
 
                 int minX = island.getCenterX()
                                 - (islandSize / 2);
@@ -257,23 +263,22 @@ public final class IslandManager {
                                                         try {
                                                                 int processed = 0;
 
-                                                                while (processed < blocksPerTick) {
+                                                                while (processed < positionsPerTick) {
                                                                         if (x[0] > maxX) {
                                                                                 task[0].cancel();
 
-                                                                                if (plugin
-                                                                                                .getConfig()
+                                                                                if (plugin.getConfig()
                                                                                                 .getBoolean(
                                                                                                                 "debug.enabled",
                                                                                                                 false)) {
-                                                                                        plugin
-                                                                                                        .getLogger()
-                                                                                                        .info(
-                                                                                                                        "Finished clearing island "
-                                                                                                                                        + island.getIslandId());
+                                                                                        plugin.getLogger().info(
+                                                                                                        "Finished clearing island "
+                                                                                                                        + island.getIslandId());
                                                                                 }
 
-                                                                                future.complete(null);
+                                                                                future.complete(
+                                                                                                null);
+
                                                                                 return;
                                                                         }
 
@@ -294,7 +299,6 @@ public final class IslandManager {
                                                                         }
 
                                                                         processed++;
-
                                                                         y[0]++;
 
                                                                         if (y[0] > maxY) {
@@ -321,6 +325,89 @@ public final class IslandManager {
                 return future;
         }
 
+        private void teleportPlayersOffIsland(
+                        Island island) {
+                int islandSize = Math.max(
+                                1,
+                                plugin.getConfig().getInt(
+                                                "islands.size",
+                                                50));
+
+                int minX = island.getCenterX()
+                                - (islandSize / 2);
+
+                int minZ = island.getCenterZ()
+                                - (islandSize / 2);
+
+                int maxX = minX + islandSize - 1;
+
+                int maxZ = minZ + islandSize - 1;
+
+                Location destination = getDeletionTeleportLocation();
+
+                for (Player player : islandWorld.getPlayers()) {
+
+                        Location location = player.getLocation();
+
+                        if (location.getX() >= minX
+                                        && location.getX() < maxX + 1.0
+                                        && location.getZ() >= minZ
+                                        && location.getZ() < maxZ + 1.0) {
+                                player.teleport(
+                                                destination);
+                        }
+                }
+        }
+
+        private Location getDeletionTeleportLocation() {
+                String configuredWorld = plugin.getConfig().getString(
+                                "deletion.teleport-world",
+                                "world");
+
+                if (configuredWorld != null
+                                && !configuredWorld.isBlank()) {
+                        World world = plugin.getServer().getWorld(
+                                        configuredWorld);
+
+                        if (world != null
+                                        && !world.equals(
+                                                        islandWorld)) {
+                                return world
+                                                .getSpawnLocation()
+                                                .clone()
+                                                .add(
+                                                                0.5,
+                                                                0.0,
+                                                                0.5);
+                        }
+                }
+
+                for (World world : plugin.getServer().getWorlds()) {
+
+                        if (!world.equals(islandWorld)) {
+                                return world
+                                                .getSpawnLocation()
+                                                .clone()
+                                                .add(
+                                                                0.5,
+                                                                0.0,
+                                                                0.5);
+                        }
+                }
+
+                plugin.getLogger().warning(
+                                "No non-island world was found for deletion teleport. "
+                                                + "Using the island world's spawn.");
+
+                return islandWorld
+                                .getSpawnLocation()
+                                .clone()
+                                .add(
+                                                0.5,
+                                                0.0,
+                                                0.5);
+        }
+
         private void removeIslandEntities(
                         int minX,
                         int maxX,
@@ -329,6 +416,7 @@ public final class IslandManager {
                         int minZ,
                         int maxZ) {
                 for (Entity entity : islandWorld.getEntities()) {
+
                         if (entity instanceof Player) {
                                 continue;
                         }

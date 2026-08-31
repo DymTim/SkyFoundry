@@ -114,7 +114,11 @@ deletion:
 
   # Number of blocks checked/cleared per tick.
   # Higher = faster deletion, but heavier server ticks.
-  blocks-per-tick: 2000
+  blocks-per-tick: 25000
+
+  # World players are sent to before their island is deleted.
+  # If this world cannot be found, SkyFoundry uses the first non-island world.
+  teleport-world: "world"
 
 # ------------------------------------------------------------
 # Storage
