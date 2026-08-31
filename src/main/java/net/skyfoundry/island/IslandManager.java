@@ -5,7 +5,6 @@ import net.skyfoundry.storage.Database;
 import org.bukkit.Location;
 import org.bukkit.World;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -140,6 +139,38 @@ public final class IslandManager {
         return island;
     }
 
+    public boolean deleteIsland(UUID ownerUuid) throws SQLException {
+        Island island = islands.get(ownerUuid);
+
+        if (island == null) {
+            return false;
+        }
+
+        String sql = """
+                DELETE FROM islands
+                WHERE owner_uuid = ?;
+                """;
+
+        try (
+                PreparedStatement statement = database
+                        .getConnection()
+                        .prepareStatement(sql)) {
+            statement.setString(
+                    1,
+                    ownerUuid.toString());
+
+            int affectedRows = statement.executeUpdate();
+
+            if (affectedRows == 0) {
+                return false;
+            }
+        }
+
+        islands.remove(ownerUuid);
+
+        return true;
+    }
+
     private void insertIsland(Island island) throws SQLException {
         String sql = """
                 INSERT INTO islands (
@@ -188,10 +219,11 @@ public final class IslandManager {
                 FROM islands;
                 """;
 
-        Connection connection = database.getConnection();
-
         try (
-                Statement statement = connection.createStatement();
+                Statement statement = database
+                        .getConnection()
+                        .createStatement();
+
                 ResultSet resultSet = statement.executeQuery(sql)) {
             if (resultSet.next()) {
                 return resultSet.getLong("island_count");

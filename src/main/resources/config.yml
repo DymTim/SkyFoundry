@@ -139,6 +139,14 @@ messages:
 
   teleport-cancelled: "<red>Teleport cancelled because you moved.</red>"
 
+  island-create-failed: "<red>Something went wrong while creating your island.</red>"
+
+  island-delete-confirm: "<red>Run <gold>/island delete confirm</gold> within <yellow>{seconds}</yellow> seconds to permanently delete your island.</red>"
+
+  island-delete-confirm-expired: "<red>Your island deletion confirmation has expired.</red>"
+
+  island-delete-failed: "<red>Something went wrong while deleting your island.</red>"
+
 # ------------------------------------------------------------
 # Debug
 # ------------------------------------------------------------
