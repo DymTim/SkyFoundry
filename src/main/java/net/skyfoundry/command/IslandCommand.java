@@ -20,6 +20,9 @@ import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.SQLException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -86,6 +89,10 @@ public final class IslandCommand
                                 teleportHome(
                                                 player);
 
+                        case "info" ->
+                                handleInfo(
+                                                player);
+
                         case "sethome" ->
                                 handleSetHome(
                                                 player);
@@ -129,6 +136,157 @@ public final class IslandCommand
                 }
 
                 return true;
+        }
+
+        private void handleInfo(
+                        Player player) {
+                UUID playerUuid = player.getUniqueId();
+
+                Island island = islandManager
+                                .getIsland(
+                                                playerUuid)
+                                .orElse(null);
+
+                if (island == null) {
+                        sendMessage(
+                                        player,
+                                        "messages.island-not-found",
+                                        "<red>You do not have an island.</red>");
+
+                        return;
+                }
+
+                IslandRole role = islandManager
+                                .getRole(
+                                                playerUuid)
+                                .orElse(IslandRole.MEMBER);
+
+                String ownerName = Bukkit.getOfflinePlayer(
+                                island.getOwnerUuid())
+                                .getName();
+
+                if (ownerName == null
+                                || ownerName.isBlank()) {
+                        ownerName = island.getOwnerUuid()
+                                        .toString();
+                }
+
+                int memberCount = islandManager.getMemberCount(
+                                island);
+
+                int memberLimit = Math.max(
+                                1,
+                                plugin.getConfig()
+                                                .getInt(
+                                                                "islands.member-limit",
+                                                                5));
+
+                int islandSize = Math.max(
+                                1,
+                                plugin.getConfig()
+                                                .getInt(
+                                                                "islands.size",
+                                                                50));
+
+                String created = DateTimeFormatter
+                                .ofPattern(
+                                                "MMM d, yyyy")
+                                .withZone(
+                                                ZoneId.systemDefault())
+                                .format(
+                                                Instant.ofEpochSecond(
+                                                                island.getCreatedAt()));
+
+                String title = plugin.getConfig()
+                                .getString(
+                                                "island-info.title",
+                                                "<gold><bold>⚙ SKYFOUNDRY ISLAND</bold></gold>");
+
+                String ownerLine = plugin.getConfig()
+                                .getString(
+                                                "island-info.owner",
+                                                "<gray>Owner:</gray> <yellow>{owner}</yellow>")
+                                .replace(
+                                                "{owner}",
+                                                ownerName);
+
+                String roleLine = plugin.getConfig()
+                                .getString(
+                                                "island-info.role",
+                                                "<gray>Role:</gray> <yellow>{role}</yellow>")
+                                .replace(
+                                                "{role}",
+                                                formatRole(
+                                                                role));
+
+                String membersLine = plugin.getConfig()
+                                .getString(
+                                                "island-info.members",
+                                                "<gray>Members:</gray> <yellow>{members}</yellow><gray>/</gray><yellow>{limit}</yellow>")
+                                .replace(
+                                                "{members}",
+                                                Integer.toString(
+                                                                memberCount))
+                                .replace(
+                                                "{limit}",
+                                                Integer.toString(
+                                                                memberLimit));
+
+                String idLine = plugin.getConfig()
+                                .getString(
+                                                "island-info.id",
+                                                "<gray>Island ID:</gray> <yellow>#{id}</yellow>")
+                                .replace(
+                                                "{id}",
+                                                Long.toString(
+                                                                island.getIslandId()));
+
+                String centerLine = plugin.getConfig()
+                                .getString(
+                                                "island-info.center",
+                                                "<gray>Center:</gray> <yellow>{x}, {z}</yellow>")
+                                .replace(
+                                                "{x}",
+                                                Integer.toString(
+                                                                island.getCenterX()))
+                                .replace(
+                                                "{z}",
+                                                Integer.toString(
+                                                                island.getCenterZ()));
+
+                String sizeLine = plugin.getConfig()
+                                .getString(
+                                                "island-info.size",
+                                                "<gray>Size:</gray> <yellow>{size}x{size}</yellow>")
+                                .replace(
+                                                "{size}",
+                                                Integer.toString(
+                                                                islandSize));
+
+                String createdLine = plugin.getConfig()
+                                .getString(
+                                                "island-info.created",
+                                                "<gray>Created:</gray> <yellow>{created}</yellow>")
+                                .replace(
+                                                "{created}",
+                                                created);
+
+                player.sendRichMessage(
+                                title);
+                player.sendRichMessage(
+                                ownerLine);
+                player.sendRichMessage(
+                                roleLine);
+                player.sendRichMessage(
+                                membersLine);
+                player.sendRichMessage(
+                                idLine);
+                player.sendRichMessage(
+                                centerLine);
+                player.sendRichMessage(
+                                sizeLine);
+                player.sendRichMessage(
+                                createdLine);
         }
 
         private void handleCreate(
@@ -1033,6 +1191,7 @@ public final class IslandCommand
                                                 + "<gray>Commands: "
                                                 + "<gold>/island create</gold>, "
                                                 + "<gold>/island home</gold>, "
+                                                + "<gold>/island info</gold>, "
                                                 + "<gold>/island sethome</gold>, "
                                                 + "<gold>/island invite</gold>, "
                                                 + "<gold>/island accept</gold>, "

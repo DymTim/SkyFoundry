@@ -123,6 +123,20 @@ storage:
   database-file: "skyfoundry.db"
 
 # ------------------------------------------------------------
+# Island Info
+# ------------------------------------------------------------
+
+island-info:
+  title: "<gold><bold>⚙ SKYFOUNDRY ISLAND</bold></gold>"
+  owner: "<gray>Owner:</gray> <yellow>{owner}</yellow>"
+  role: "<gray>Role:</gray> <yellow>{role}</yellow>"
+  members: "<gray>Members:</gray> <yellow>{members}</yellow><gray>/</gray><yellow>{limit}</yellow>"
+  id: "<gray>Island ID:</gray> <yellow>#{id}</yellow>"
+  center: "<gray>Center:</gray> <yellow>{x}, {z}</yellow>"
+  size: "<gray>Size:</gray> <yellow>{size}x{size}</yellow>"
+  created: "<gray>Created:</gray> <yellow>{created}</yellow>"
+
+# ------------------------------------------------------------
 # Messages
 # ------------------------------------------------------------
 
