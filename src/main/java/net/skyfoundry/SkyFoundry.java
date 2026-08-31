@@ -14,250 +14,250 @@ import java.sql.SQLException;
 
 public final class SkyFoundry extends JavaPlugin {
 
-    private World islandWorld;
-    private Database database;
-    private IslandManager islandManager;
-    private SchematicManager schematicManager;
+        private World islandWorld;
+        private Database database;
+        private IslandManager islandManager;
+        private SchematicManager schematicManager;
 
-    @Override
-    public void onEnable() {
-        saveDefaultConfig();
-        saveStarterSchematic();
+        @Override
+        public void onEnable() {
+                saveDefaultConfig();
+                saveStarterSchematic();
 
-        getLogger().info(
-                "SkyFoundry v"
-                        + getPluginMeta().getVersion()
-                        + " enabling...");
+                getLogger().info(
+                                "SkyFoundry v"
+                                                + getPluginMeta().getVersion()
+                                                + " enabling...");
 
-        if (!setupIslandWorld()) {
-            getLogger().severe(
-                    "Failed to load the SkyFoundry island world.");
-            disablePlugin();
-            return;
+                if (!setupIslandWorld()) {
+                        getLogger().severe(
+                                        "Failed to load the SkyFoundry island world.");
+                        disablePlugin();
+                        return;
+                }
+
+                if (!setupDatabase()) {
+                        getLogger().severe(
+                                        "Failed to initialize the SkyFoundry database.");
+                        disablePlugin();
+                        return;
+                }
+
+                if (!setupIslandManager()) {
+                        getLogger().severe(
+                                        "Failed to initialize the island manager.");
+                        disablePlugin();
+                        return;
+                }
+
+                schematicManager = new SchematicManager(this);
+
+                getCommand("island").setExecutor(
+                                new IslandCommand(this, islandManager));
+
+                if (getConfig().getBoolean("debug.enabled", false)) {
+                        logDebugInformation();
+                }
+
+                getLogger().info(
+                                "SkyFoundry v"
+                                                + getPluginMeta().getVersion()
+                                                + " enabled.");
         }
 
-        if (!setupDatabase()) {
-            getLogger().severe(
-                    "Failed to initialize the SkyFoundry database.");
-            disablePlugin();
-            return;
+        @Override
+        public void onDisable() {
+                if (database != null) {
+                        database.close();
+                }
+
+                getLogger().info("SkyFoundry disabled.");
         }
 
-        if (!setupIslandManager()) {
-            getLogger().severe(
-                    "Failed to initialize the island manager.");
-            disablePlugin();
-            return;
+        private void saveStarterSchematic() {
+                String fileName = getConfig().getString(
+                                "schematic.file",
+                                "starter.schem");
+
+                File schematicFile = new File(
+                                getDataFolder(),
+                                fileName);
+
+                if (schematicFile.exists()) {
+                        return;
+                }
+
+                try {
+                        saveResource(fileName, false);
+
+                        getLogger().info(
+                                        "Saved default schematic '"
+                                                        + fileName
+                                                        + "'.");
+                } catch (IllegalArgumentException exception) {
+                        getLogger().warning(
+                                        "No bundled schematic named '"
+                                                        + fileName
+                                                        + "' was found.");
+                }
         }
 
-        schematicManager = new SchematicManager(this);
+        private boolean setupIslandWorld() {
+                String worldName = getConfig().getString(
+                                "world.name",
+                                "skyfoundry");
 
-        getCommand("island").setExecutor(
-                new IslandCommand(this));
+                boolean autoCreate = getConfig().getBoolean(
+                                "world.auto-create",
+                                true);
 
-        if (getConfig().getBoolean("debug.enabled", false)) {
-            logDebugInformation();
+                World existingWorld = getServer().getWorld(worldName);
+
+                if (existingWorld != null) {
+                        islandWorld = existingWorld;
+
+                        getLogger().info(
+                                        "Loaded existing island world '"
+                                                        + worldName
+                                                        + "'.");
+
+                        return true;
+                }
+
+                if (!autoCreate) {
+                        getLogger().severe(
+                                        "Island world '"
+                                                        + worldName
+                                                        + "' is not loaded and "
+                                                        + "world.auto-create is disabled.");
+
+                        return false;
+                }
+
+                WorldCreator creator = new WorldCreator(worldName);
+
+                creator.environment(getConfiguredEnvironment());
+                creator.generator(new VoidChunkGenerator());
+                creator.generateStructures(false);
+
+                islandWorld = creator.createWorld();
+
+                if (islandWorld == null) {
+                        return false;
+                }
+
+                islandWorld.setAutoSave(true);
+
+                getLogger().info(
+                                "Created void island world '"
+                                                + worldName
+                                                + "'.");
+
+                return true;
         }
 
-        getLogger().info(
-                "SkyFoundry v"
-                        + getPluginMeta().getVersion()
-                        + " enabled.");
-    }
+        private World.Environment getConfiguredEnvironment() {
+                String configuredEnvironment = getConfig()
+                                .getString(
+                                                "world.environment",
+                                                "NORMAL")
+                                .toUpperCase();
 
-    @Override
-    public void onDisable() {
-        if (database != null) {
-            database.close();
+                try {
+                        return World.Environment.valueOf(
+                                        configuredEnvironment);
+                } catch (IllegalArgumentException exception) {
+                        getLogger().warning(
+                                        "Invalid world.environment value '"
+                                                        + configuredEnvironment
+                                                        + "'. Using NORMAL.");
+
+                        return World.Environment.NORMAL;
+                }
         }
 
-        getLogger().info("SkyFoundry disabled.");
-    }
+        private boolean setupDatabase() {
+                database = new Database(this);
 
-    private void saveStarterSchematic() {
-        String fileName = getConfig().getString(
-                "schematic.file",
-                "starter.schem");
+                try {
+                        database.initialize();
 
-        File schematicFile = new File(
-                getDataFolder(),
-                fileName);
+                        getLogger().info(
+                                        "SQLite database initialized.");
 
-        if (schematicFile.exists()) {
-            return;
+                        return true;
+
+                } catch (SQLException exception) {
+                        getLogger().severe(
+                                        "SQLite initialization failed: "
+                                                        + exception.getMessage());
+
+                        return false;
+                }
         }
 
-        try {
-            saveResource(fileName, false);
+        private boolean setupIslandManager() {
+                islandManager = new IslandManager(
+                                this,
+                                database,
+                                islandWorld);
 
-            getLogger().info(
-                    "Saved default schematic '"
-                            + fileName
-                            + "'.");
-        } catch (IllegalArgumentException exception) {
-            getLogger().warning(
-                    "No bundled schematic named '"
-                            + fileName
-                            + "' was found.");
-        }
-    }
+                try {
+                        islandManager.loadIslands();
+                        return true;
 
-    private boolean setupIslandWorld() {
-        String worldName = getConfig().getString(
-                "world.name",
-                "skyfoundry");
+                } catch (SQLException exception) {
+                        getLogger().severe(
+                                        "Failed to load islands: "
+                                                        + exception.getMessage());
 
-        boolean autoCreate = getConfig().getBoolean(
-                "world.auto-create",
-                true);
-
-        World existingWorld = getServer().getWorld(worldName);
-
-        if (existingWorld != null) {
-            islandWorld = existingWorld;
-
-            getLogger().info(
-                    "Loaded existing island world '"
-                            + worldName
-                            + "'.");
-
-            return true;
+                        return false;
+                }
         }
 
-        if (!autoCreate) {
-            getLogger().severe(
-                    "Island world '"
-                            + worldName
-                            + "' is not loaded and "
-                            + "world.auto-create is disabled.");
+        private void logDebugInformation() {
+                getLogger().info(
+                                "Debug logging is enabled.");
 
-            return false;
+                getLogger().info(
+                                "Running on Minecraft "
+                                                + getServer().getMinecraftVersion());
+
+                getLogger().info(
+                                "Running server: "
+                                                + getServer().getName());
+
+                getLogger().info(
+                                "Island world: "
+                                                + islandWorld.getName());
+
+                getLogger().info(
+                                "Loaded islands: "
+                                                + islandManager.getIslandCount());
         }
 
-        WorldCreator creator = new WorldCreator(worldName);
+        private void disablePlugin() {
+                getLogger().severe(
+                                "SkyFoundry will now disable.");
 
-        creator.environment(getConfiguredEnvironment());
-        creator.generator(new VoidChunkGenerator());
-        creator.generateStructures(false);
-
-        islandWorld = creator.createWorld();
-
-        if (islandWorld == null) {
-            return false;
+                getServer()
+                                .getPluginManager()
+                                .disablePlugin(this);
         }
 
-        islandWorld.setAutoSave(true);
-
-        getLogger().info(
-                "Created void island world '"
-                        + worldName
-                        + "'.");
-
-        return true;
-    }
-
-    private World.Environment getConfiguredEnvironment() {
-        String configuredEnvironment = getConfig()
-                .getString(
-                        "world.environment",
-                        "NORMAL")
-                .toUpperCase();
-
-        try {
-            return World.Environment.valueOf(
-                    configuredEnvironment);
-        } catch (IllegalArgumentException exception) {
-            getLogger().warning(
-                    "Invalid world.environment value '"
-                            + configuredEnvironment
-                            + "'. Using NORMAL.");
-
-            return World.Environment.NORMAL;
+        public World getIslandWorld() {
+                return islandWorld;
         }
-    }
 
-    private boolean setupDatabase() {
-        database = new Database(this);
-
-        try {
-            database.initialize();
-
-            getLogger().info(
-                    "SQLite database initialized.");
-
-            return true;
-
-        } catch (SQLException exception) {
-            getLogger().severe(
-                    "SQLite initialization failed: "
-                            + exception.getMessage());
-
-            return false;
+        public Database getDatabase() {
+                return database;
         }
-    }
 
-    private boolean setupIslandManager() {
-        islandManager = new IslandManager(
-                this,
-                database,
-                islandWorld);
-
-        try {
-            islandManager.loadIslands();
-            return true;
-
-        } catch (SQLException exception) {
-            getLogger().severe(
-                    "Failed to load islands: "
-                            + exception.getMessage());
-
-            return false;
+        public IslandManager getIslandManager() {
+                return islandManager;
         }
-    }
 
-    private void logDebugInformation() {
-        getLogger().info(
-                "Debug logging is enabled.");
-
-        getLogger().info(
-                "Running on Minecraft "
-                        + getServer().getMinecraftVersion());
-
-        getLogger().info(
-                "Running server: "
-                        + getServer().getName());
-
-        getLogger().info(
-                "Island world: "
-                        + islandWorld.getName());
-
-        getLogger().info(
-                "Loaded islands: "
-                        + islandManager.getIslandCount());
-    }
-
-    private void disablePlugin() {
-        getLogger().severe(
-                "SkyFoundry will now disable.");
-
-        getServer()
-                .getPluginManager()
-                .disablePlugin(this);
-    }
-
-    public World getIslandWorld() {
-        return islandWorld;
-    }
-
-    public Database getDatabase() {
-        return database;
-    }
-
-    public IslandManager getIslandManager() {
-        return islandManager;
-    }
-
-    public SchematicManager getSchematicManager() {
-        return schematicManager;
-    }
+        public SchematicManager getSchematicManager() {
+                return schematicManager;
+        }
 }

@@ -112,6 +112,10 @@ deletion:
   # Number of seconds before a deletion confirmation expires.
   confirmation-timeout-seconds: 30
 
+  # Number of blocks checked/cleared per tick.
+  # Higher = faster deletion, but heavier server ticks.
+  blocks-per-tick: 2000
+
 # ------------------------------------------------------------
 # Storage
 # ------------------------------------------------------------

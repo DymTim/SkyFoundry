@@ -3,7 +3,11 @@ package net.skyfoundry.island;
 import net.skyfoundry.SkyFoundry;
 import net.skyfoundry.storage.Database;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -15,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public final class IslandManager {
 
@@ -74,6 +79,7 @@ public final class IslandManager {
                                         plugin.getLogger().warning(
                                                         "Skipping island with invalid owner UUID: "
                                                                         + resultSet.getString("owner_uuid"));
+
                                         continue;
                                 }
 
@@ -93,15 +99,21 @@ public final class IslandManager {
                                                 home,
                                                 resultSet.getLong("created_at"));
 
-                                islands.put(ownerUuid, island);
+                                islands.put(
+                                                ownerUuid,
+                                                island);
                         }
                 }
 
                 plugin.getLogger().info(
-                                "Loaded " + islands.size() + " island(s).");
+                                "Loaded "
+                                                + islands.size()
+                                                + " island(s).");
         }
 
-        public Island createIsland(UUID ownerUuid) throws SQLException {
+        public Island createIsland(UUID ownerUuid)
+                        throws SQLException {
+
                 Island existing = islands.get(ownerUuid);
 
                 if (existing != null) {
@@ -110,7 +122,8 @@ public final class IslandManager {
 
                 long nextIslandId = getNextIslandId();
 
-                IslandPositioner.IslandPosition position = positioner.getPosition(nextIslandId - 1);
+                IslandPositioner.IslandPosition position = positioner.getPosition(
+                                nextIslandId - 1);
 
                 int creationY = plugin.getConfig().getInt(
                                 "islands.creation-y",
@@ -156,15 +169,191 @@ public final class IslandManager {
 
                 insertIsland(island);
 
-                islands.put(ownerUuid, island);
+                islands.put(
+                                ownerUuid,
+                                island);
 
                 return island;
         }
 
-        public boolean deleteIsland(UUID ownerUuid) throws SQLException {
-                if (!islands.containsKey(ownerUuid)) {
-                        return false;
+        public CompletableFuture<Boolean> deleteIsland(
+                        UUID ownerUuid) {
+                Island island = islands.get(ownerUuid);
+
+                if (island == null) {
+                        return CompletableFuture.completedFuture(
+                                        false);
                 }
+
+                return clearIsland(island)
+                                .thenApply(unused -> {
+                                        try {
+                                                deleteIslandRecord(
+                                                                ownerUuid);
+
+                                                islands.remove(
+                                                                ownerUuid);
+
+                                                return true;
+
+                                        } catch (SQLException exception) {
+                                                throw new RuntimeException(
+                                                                "Failed to delete island database record.",
+                                                                exception);
+                                        }
+                                });
+        }
+
+        private CompletableFuture<Void> clearIsland(
+                        Island island) {
+                CompletableFuture<Void> future = new CompletableFuture<>();
+
+                int islandSize = Math.max(
+                                1,
+                                plugin.getConfig().getInt(
+                                                "islands.size",
+                                                50));
+
+                int blocksPerTick = Math.max(
+                                1,
+                                plugin.getConfig().getInt(
+                                                "deletion.blocks-per-tick",
+                                                2000));
+
+                int minX = island.getCenterX()
+                                - (islandSize / 2);
+
+                int minZ = island.getCenterZ()
+                                - (islandSize / 2);
+
+                int maxX = minX + islandSize - 1;
+
+                int maxZ = minZ + islandSize - 1;
+
+                int minY = islandWorld.getMinHeight();
+
+                int maxY = islandWorld.getMaxHeight() - 1;
+
+                removeIslandEntities(
+                                minX,
+                                maxX,
+                                minY,
+                                maxY,
+                                minZ,
+                                maxZ);
+
+                final int[] x = { minX };
+                final int[] y = { minY };
+                final int[] z = { minZ };
+
+                final BukkitTask[] task = new BukkitTask[1];
+
+                task[0] = plugin
+                                .getServer()
+                                .getScheduler()
+                                .runTaskTimer(
+                                                plugin,
+                                                () -> {
+                                                        try {
+                                                                int processed = 0;
+
+                                                                while (processed < blocksPerTick) {
+                                                                        if (x[0] > maxX) {
+                                                                                task[0].cancel();
+
+                                                                                if (plugin
+                                                                                                .getConfig()
+                                                                                                .getBoolean(
+                                                                                                                "debug.enabled",
+                                                                                                                false)) {
+                                                                                        plugin
+                                                                                                        .getLogger()
+                                                                                                        .info(
+                                                                                                                        "Finished clearing island "
+                                                                                                                                        + island.getIslandId());
+                                                                                }
+
+                                                                                future.complete(null);
+                                                                                return;
+                                                                        }
+
+                                                                        if (islandWorld
+                                                                                        .getBlockAt(
+                                                                                                        x[0],
+                                                                                                        y[0],
+                                                                                                        z[0])
+                                                                                        .getType() != Material.AIR) {
+                                                                                islandWorld
+                                                                                                .getBlockAt(
+                                                                                                                x[0],
+                                                                                                                y[0],
+                                                                                                                z[0])
+                                                                                                .setType(
+                                                                                                                Material.AIR,
+                                                                                                                false);
+                                                                        }
+
+                                                                        processed++;
+
+                                                                        y[0]++;
+
+                                                                        if (y[0] > maxY) {
+                                                                                y[0] = minY;
+                                                                                z[0]++;
+
+                                                                                if (z[0] > maxZ) {
+                                                                                        z[0] = minZ;
+                                                                                        x[0]++;
+                                                                                }
+                                                                        }
+                                                                }
+
+                                                        } catch (Exception exception) {
+                                                                task[0].cancel();
+
+                                                                future.completeExceptionally(
+                                                                                exception);
+                                                        }
+                                                },
+                                                1L,
+                                                1L);
+
+                return future;
+        }
+
+        private void removeIslandEntities(
+                        int minX,
+                        int maxX,
+                        int minY,
+                        int maxY,
+                        int minZ,
+                        int maxZ) {
+                for (Entity entity : islandWorld.getEntities()) {
+                        if (entity instanceof Player) {
+                                continue;
+                        }
+
+                        Location location = entity.getLocation();
+
+                        double x = location.getX();
+
+                        double y = location.getY();
+
+                        double z = location.getZ();
+
+                        if (x >= minX
+                                        && x < maxX + 1.0
+                                        && y >= minY
+                                        && y < maxY + 1.0
+                                        && z >= minZ
+                                        && z < maxZ + 1.0) {
+                                entity.remove();
+                        }
+                }
+        }
+
+        private void deleteIslandRecord(
+                        UUID ownerUuid) throws SQLException {
 
                 String sql = """
                                 DELETE FROM islands
@@ -179,19 +368,13 @@ public final class IslandManager {
                                         1,
                                         ownerUuid.toString());
 
-                        int affectedRows = statement.executeUpdate();
-
-                        if (affectedRows == 0) {
-                                return false;
-                        }
+                        statement.executeUpdate();
                 }
-
-                islands.remove(ownerUuid);
-
-                return true;
         }
 
-        private void insertIsland(Island island) throws SQLException {
+        private void insertIsland(
+                        Island island) throws SQLException {
+
                 String sql = """
                                 INSERT INTO islands (
                                     island_id,
@@ -220,7 +403,8 @@ public final class IslandManager {
 
                         statement.setString(
                                         2,
-                                        island.getOwnerUuid().toString());
+                                        island.getOwnerUuid()
+                                                        .toString());
 
                         statement.setInt(
                                         3,
@@ -258,7 +442,9 @@ public final class IslandManager {
                 }
         }
 
-        private long getNextIslandId() throws SQLException {
+        private long getNextIslandId()
+                        throws SQLException {
+
                 String sql = """
                                 SELECT seq
                                 FROM sqlite_sequence
@@ -272,24 +458,30 @@ public final class IslandManager {
 
                                 ResultSet resultSet = statement.executeQuery(sql)) {
                         if (resultSet.next()) {
-                                return resultSet.getLong("seq") + 1;
+                                return resultSet
+                                                .getLong("seq")
+                                                + 1;
                         }
                 }
 
                 return 1;
         }
 
-        public Optional<Island> getIsland(UUID ownerUuid) {
+        public Optional<Island> getIsland(
+                        UUID ownerUuid) {
                 return Optional.ofNullable(
                                 islands.get(ownerUuid));
         }
 
-        public boolean hasIsland(UUID ownerUuid) {
-                return islands.containsKey(ownerUuid);
+        public boolean hasIsland(
+                        UUID ownerUuid) {
+                return islands.containsKey(
+                                ownerUuid);
         }
 
         public Map<UUID, Island> getIslands() {
-                return Collections.unmodifiableMap(islands);
+                return Collections.unmodifiableMap(
+                                islands);
         }
 
         public int getIslandCount() {
