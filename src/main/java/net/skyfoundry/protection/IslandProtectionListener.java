@@ -6,17 +6,29 @@ import net.skyfoundry.island.IslandManager;
 import net.skyfoundry.island.IslandRole;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.event.block.BlockFromToEvent;
+import org.bukkit.event.block.BlockPistonExtendEvent;
+import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.hanging.HangingBreakByEntityEvent;
+import org.bukkit.event.hanging.HangingPlaceEvent;
+import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.projectiles.ProjectileSource;
 
 import java.util.Optional;
 
@@ -52,11 +64,8 @@ public final class IslandProtectionListener
         if (!canBuild(
                 player,
                 event.getBlock().getLocation())) {
-            event.setCancelled(
-                    true);
-
-            sendProtectedMessage(
-                    player);
+            event.setCancelled(true);
+            sendProtectedMessage(player);
         }
     }
 
@@ -76,13 +85,57 @@ public final class IslandProtectionListener
 
         if (!canBuild(
                 player,
-                event.getBlockPlaced()
-                        .getLocation())) {
-            event.setCancelled(
-                    true);
+                event.getBlockPlaced().getLocation())) {
+            event.setCancelled(true);
+            sendProtectedMessage(player);
+        }
+    }
 
-            sendProtectedMessage(
-                    player);
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBucketEmpty(
+            PlayerBucketEmptyEvent event) {
+        if (!isProtectionEnabled(
+                "block-place")) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+
+        if (canBypass(player)) {
+            return;
+        }
+
+        Location target = event.getBlockClicked()
+                .getRelative(event.getBlockFace())
+                .getLocation();
+
+        if (!canBuild(
+                player,
+                target)) {
+            event.setCancelled(true);
+            sendProtectedMessage(player);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBucketFill(
+            PlayerBucketFillEvent event) {
+        if (!isProtectionEnabled(
+                "block-break")) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+
+        if (canBypass(player)) {
+            return;
+        }
+
+        if (!canBuild(
+                player,
+                event.getBlockClicked().getLocation())) {
+            event.setCancelled(true);
+            sendProtectedMessage(player);
         }
     }
 
@@ -106,13 +159,9 @@ public final class IslandProtectionListener
 
         if (!canInteract(
                 player,
-                event.getClickedBlock()
-                        .getLocation())) {
-            event.setCancelled(
-                    true);
-
-            sendProtectedMessage(
-                    player);
+                event.getClickedBlock().getLocation())) {
+            event.setCancelled(true);
+            sendProtectedMessage(player);
         }
     }
 
@@ -132,13 +181,31 @@ public final class IslandProtectionListener
 
         if (!canInteract(
                 player,
-                event.getRightClicked()
-                        .getLocation())) {
-            event.setCancelled(
-                    true);
+                event.getRightClicked().getLocation())) {
+            event.setCancelled(true);
+            sendProtectedMessage(player);
+        }
+    }
 
-            sendProtectedMessage(
-                    player);
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onArmorStandManipulate(
+            PlayerArmorStandManipulateEvent event) {
+        if (!isProtectionEnabled(
+                "entities")) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+
+        if (canBypass(player)) {
+            return;
+        }
+
+        if (!canInteract(
+                player,
+                event.getRightClicked().getLocation())) {
+            event.setCancelled(true);
+            sendProtectedMessage(player);
         }
     }
 
@@ -150,29 +217,23 @@ public final class IslandProtectionListener
             return;
         }
 
-        if (!(event.getDamager() instanceof Player player)) {
-
-            return;
-        }
-
         if (event.getEntity() instanceof Player) {
-
             return;
         }
 
-        if (canBypass(player)) {
+        Player player = getResponsiblePlayer(
+                event.getDamager());
+
+        if (player == null
+                || canBypass(player)) {
             return;
         }
 
         if (!canInteract(
                 player,
-                event.getEntity()
-                        .getLocation())) {
-            event.setCancelled(
-                    true);
-
-            sendProtectedMessage(
-                    player);
+                event.getEntity().getLocation())) {
+            event.setCancelled(true);
+            sendProtectedMessage(player);
         }
     }
 
@@ -184,35 +245,187 @@ public final class IslandProtectionListener
             return;
         }
 
-        Entity remover = event.getRemover();
+        Player player = getResponsiblePlayer(
+                event.getRemover());
 
-        if (!(remover instanceof Player player)) {
-
-            return;
-        }
-
-        if (canBypass(player)) {
+        if (player == null
+                || canBypass(player)) {
             return;
         }
 
         if (!canInteract(
                 player,
-                event.getEntity()
-                        .getLocation())) {
-            event.setCancelled(
-                    true);
-
-            sendProtectedMessage(
-                    player);
+                event.getEntity().getLocation())) {
+            event.setCancelled(true);
+            sendProtectedMessage(player);
         }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onHangingPlace(
+            HangingPlaceEvent event) {
+        if (!isProtectionEnabled(
+                "entities")) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+
+        if (player == null
+                || canBypass(player)) {
+            return;
+        }
+
+        if (!canInteract(
+                player,
+                event.getEntity().getLocation())) {
+            event.setCancelled(true);
+            sendProtectedMessage(player);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onFluidFlow(
+            BlockFromToEvent event) {
+        if (!isProtectionEnabled(
+                "environment")) {
+            return;
+        }
+
+        if (!isSameIslandMovement(
+                event.getBlock().getLocation(),
+                event.getToBlock().getLocation())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEntityExplode(
+            EntityExplodeEvent event) {
+        if (!isProtectionEnabled(
+                "environment")) {
+            return;
+        }
+
+        Location origin = event.getLocation();
+
+        event.blockList().removeIf(
+                block -> !isSameIslandMovement(
+                        origin,
+                        block.getLocation()));
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBlockExplode(
+            BlockExplodeEvent event) {
+        if (!isProtectionEnabled(
+                "environment")) {
+            return;
+        }
+
+        Location origin = event.getBlock().getLocation();
+
+        event.blockList().removeIf(
+                block -> !isSameIslandMovement(
+                        origin,
+                        block.getLocation()));
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onPistonExtend(
+            BlockPistonExtendEvent event) {
+        if (!isProtectionEnabled(
+                "pistons")) {
+            return;
+        }
+
+        for (Block block : event.getBlocks()) {
+            Block destination = block.getRelative(
+                    event.getDirection());
+
+            if (!isSameIslandMovement(
+                    block.getLocation(),
+                    destination.getLocation())) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onPistonRetract(
+            BlockPistonRetractEvent event) {
+        if (!isProtectionEnabled(
+                "pistons")) {
+            return;
+        }
+
+        for (Block block : event.getBlocks()) {
+            Block destination = block.getRelative(
+                    event.getDirection().getOppositeFace());
+
+            if (!isSameIslandMovement(
+                    block.getLocation(),
+                    destination.getLocation())) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+    }
+
+    private Player getResponsiblePlayer(
+            Entity entity) {
+        if (entity instanceof Player player) {
+            return player;
+        }
+
+        if (!(entity instanceof Projectile projectile)) {
+            return null;
+        }
+
+        ProjectileSource shooter = projectile.getShooter();
+
+        if (shooter instanceof Player player) {
+            return player;
+        }
+
+        return null;
+    }
+
+    private boolean isSameIslandMovement(
+            Location source,
+            Location destination) {
+        if (source.getWorld() == null
+                || destination.getWorld() == null
+                || !source.getWorld().equals(islandWorld)
+                || !destination.getWorld().equals(islandWorld)) {
+            return true;
+        }
+
+        Optional<Island> sourceIsland = islandManager.getIslandAt(
+                source);
+
+        Optional<Island> destinationIsland = islandManager.getIslandAt(
+                destination);
+
+        if (sourceIsland.isEmpty()
+                && destinationIsland.isEmpty()) {
+            return true;
+        }
+
+        if (sourceIsland.isEmpty()
+                || destinationIsland.isEmpty()) {
+            return false;
+        }
+
+        return sourceIsland.get().getIslandId() == destinationIsland.get().getIslandId();
     }
 
     private boolean canBuild(
             Player player,
             Location location) {
-        if (!location.getWorld()
-                .equals(islandWorld)) {
-
+        if (location.getWorld() == null
+                || !location.getWorld().equals(islandWorld)) {
             return true;
         }
 
@@ -235,8 +448,7 @@ public final class IslandProtectionListener
         }
 
         IslandRole role = islandManager
-                .getRole(
-                        player.getUniqueId())
+                .getRole(player.getUniqueId())
                 .orElse(null);
 
         return role != null
@@ -246,9 +458,8 @@ public final class IslandProtectionListener
     private boolean canInteract(
             Player player,
             Location location) {
-        if (!location.getWorld()
-                .equals(islandWorld)) {
-
+        if (location.getWorld() == null
+                || !location.getWorld().equals(islandWorld)) {
             return true;
         }
 
@@ -271,8 +482,7 @@ public final class IslandProtectionListener
         }
 
         IslandRole role = islandManager
-                .getRole(
-                        player.getUniqueId())
+                .getRole(player.getUniqueId())
                 .orElse(null);
 
         return role != null
@@ -285,7 +495,6 @@ public final class IslandProtectionListener
                 .getBoolean(
                         "protection.enabled",
                         true)) {
-
             return false;
         }
 
@@ -305,8 +514,7 @@ public final class IslandProtectionListener
 
         return permission != null
                 && !permission.isBlank()
-                && player.hasPermission(
-                        permission);
+                && player.hasPermission(permission);
     }
 
     private void sendProtectedMessage(

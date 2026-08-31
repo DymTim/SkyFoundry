@@ -28,8 +28,10 @@ public final class IslandManager {
         private final Database database;
         private final World islandWorld;
         private final IslandPositioner positioner;
+        private final int islandSpacing;
 
         private final Map<Long, Island> islandsById = new HashMap<>();
+        private final Map<Long, Island> islandsByCenter = new HashMap<>();
 
         private final Map<UUID, Island> islandsByPlayer = new HashMap<>();
 
@@ -43,9 +45,13 @@ public final class IslandManager {
                 this.database = database;
                 this.islandWorld = islandWorld;
 
-                int spacing = plugin.getConfig().getInt(
-                                "islands.spacing",
-                                500);
+                int spacing = Math.max(
+                                1,
+                                plugin.getConfig().getInt(
+                                                "islands.spacing",
+                                                500));
+
+                this.islandSpacing = spacing;
 
                 this.positioner = new IslandPositioner(
                                 spacing);
@@ -55,6 +61,7 @@ public final class IslandManager {
                         throws SQLException {
 
                 islandsById.clear();
+                islandsByCenter.clear();
                 islandsByPlayer.clear();
                 members.clear();
 
@@ -127,6 +134,12 @@ public final class IslandManager {
 
                                 islandsById.put(
                                                 island.getIslandId(),
+                                                island);
+
+                                islandsByCenter.put(
+                                                centerKey(
+                                                                island.getCenterX(),
+                                                                island.getCenterZ()),
                                                 island);
                         }
                 }
@@ -376,6 +389,12 @@ public final class IslandManager {
 
                 islandsById.put(
                                 island.getIslandId(),
+                                island);
+
+                islandsByCenter.put(
+                                centerKey(
+                                                island.getCenterX(),
+                                                island.getCenterZ()),
                                 island);
 
                 islandsByPlayer.put(
@@ -803,6 +822,11 @@ public final class IslandManager {
                 islandsById.remove(
                                 island.getIslandId());
 
+                islandsByCenter.remove(
+                                centerKey(
+                                                island.getCenterX(),
+                                                island.getCenterZ()));
+
                 islandsByPlayer
                                 .entrySet()
                                 .removeIf(
@@ -896,19 +920,50 @@ public final class IslandManager {
                         return Optional.empty();
                 }
 
-                int size = getIslandSize();
+                long gridX = Math.round(
+                                location.getX()
+                                                / islandSpacing);
 
-                for (Island island : islandsById.values()) {
+                long gridZ = Math.round(
+                                location.getZ()
+                                                / islandSpacing);
 
-                        if (island.contains(
-                                        location,
-                                        size)) {
-                                return Optional.of(
-                                                island);
-                        }
+                long centerX = gridX
+                                * islandSpacing;
+
+                long centerZ = gridZ
+                                * islandSpacing;
+
+                if (centerX < Integer.MIN_VALUE
+                                || centerX > Integer.MAX_VALUE
+                                || centerZ < Integer.MIN_VALUE
+                                || centerZ > Integer.MAX_VALUE) {
+
+                        return Optional.empty();
                 }
 
-                return Optional.empty();
+                Island island = islandsByCenter.get(
+                                centerKey(
+                                                (int) centerX,
+                                                (int) centerZ));
+
+                if (island == null
+                                || !island.contains(
+                                                location,
+                                                getIslandSize())) {
+
+                        return Optional.empty();
+                }
+
+                return Optional.of(
+                                island);
+        }
+
+        private long centerKey(
+                        int centerX,
+                        int centerZ) {
+                return ((long) centerX << 32)
+                                ^ (centerZ & 0xFFFFFFFFL);
         }
 
         public int getMemberCount(

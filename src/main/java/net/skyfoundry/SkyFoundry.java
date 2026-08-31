@@ -53,10 +53,15 @@ public final class SkyFoundry extends JavaPlugin {
 
                 schematicManager = new SchematicManager(this);
 
-                getCommand("island").setExecutor(
-                                new IslandCommand(this, islandManager));
+                IslandCommand islandCommand = new IslandCommand(
+                                this,
+                                islandManager);
 
-                registerListeners();
+                getCommand("island").setExecutor(
+                                islandCommand);
+
+                registerListeners(
+                                islandCommand);
 
                 if (getConfig().getBoolean("debug.enabled", false)) {
                         logDebugInformation();
@@ -265,13 +270,20 @@ public final class SkyFoundry extends JavaPlugin {
                 return schematicManager;
         }
 
-        private void registerListeners() {
+        private void registerListeners(
+                        IslandCommand islandCommand) {
                 getServer()
                                 .getPluginManager()
                                 .registerEvents(
                                                 new IslandProtectionListener(
                                                                 this,
                                                                 islandManager),
+                                                this);
+
+                getServer()
+                                .getPluginManager()
+                                .registerEvents(
+                                                islandCommand,
                                                 this);
         }
 }

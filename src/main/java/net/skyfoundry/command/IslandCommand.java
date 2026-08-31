@@ -11,6 +11,12 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.SQLException;
@@ -22,13 +28,14 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class IslandCommand
-                implements CommandExecutor {
+                implements CommandExecutor, Listener {
 
         private final SkyFoundry plugin;
         private final IslandManager islandManager;
 
         private final Map<UUID, Long> deletionConfirmations = new ConcurrentHashMap<>();
         private final Map<UUID, PendingTransfer> transferConfirmations = new ConcurrentHashMap<>();
+        private final Map<UUID, PendingHomeTeleport> pendingHomeTeleports = new ConcurrentHashMap<>();
 
         private final Set<UUID> creatingIslands = ConcurrentHashMap.newKeySet();
 
@@ -295,13 +302,140 @@ public final class IslandCommand
                         return;
                 }
 
+                cancelPendingHomeTeleport(
+                                player.getUniqueId(),
+                                false);
+
+                int delaySeconds = Math.max(
+                                0,
+                                plugin.getConfig().getInt(
+                                                "teleport.delay-seconds",
+                                                0));
+
                 sendMessage(
                                 player,
                                 "messages.teleporting",
                                 "<gray>Teleporting to your island...</gray>");
 
-                player.teleport(
-                                home);
+                if (delaySeconds <= 0) {
+                        player.teleport(
+                                        home);
+                        return;
+                }
+
+                Location origin = player.getLocation().clone();
+
+                BukkitTask task = Bukkit.getScheduler()
+                                .runTaskLater(
+                                                plugin,
+                                                () -> {
+                                                        pendingHomeTeleports.remove(
+                                                                        player.getUniqueId());
+
+                                                        if (!player.isOnline()) {
+                                                                return;
+                                                        }
+
+                                                        Location currentHome = islandManager.getHome(
+                                                                        player.getUniqueId());
+
+                                                        if (currentHome == null) {
+                                                                return;
+                                                        }
+
+                                                        player.teleport(
+                                                                        currentHome);
+                                                },
+                                                delaySeconds * 20L);
+
+                pendingHomeTeleports.put(
+                                player.getUniqueId(),
+                                new PendingHomeTeleport(
+                                                origin,
+                                                task));
+        }
+
+        @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+        public void onPlayerMove(
+                        PlayerMoveEvent event) {
+                if (!plugin.getConfig().getBoolean(
+                                "teleport.cancel-on-move",
+                                true)) {
+                        return;
+                }
+
+                UUID uuid = event.getPlayer().getUniqueId();
+
+                PendingHomeTeleport pending = pendingHomeTeleports.get(
+                                uuid);
+
+                if (pending == null
+                                || event.getTo() == null) {
+                        return;
+                }
+
+                Location from = pending.origin();
+                Location to = event.getTo();
+
+                if (from.getWorld() == null
+                                || to.getWorld() == null) {
+                        return;
+                }
+
+                boolean movedBlock = !from.getWorld().equals(
+                                to.getWorld())
+                                || from.getBlockX() != to.getBlockX()
+                                || from.getBlockY() != to.getBlockY()
+                                || from.getBlockZ() != to.getBlockZ();
+
+                if (!movedBlock) {
+                        return;
+                }
+
+                cancelPendingHomeTeleport(
+                                uuid,
+                                true);
+        }
+
+        @EventHandler
+        public void onPlayerQuit(
+                        PlayerQuitEvent event) {
+                cancelPendingHomeTeleport(
+                                event.getPlayer().getUniqueId(),
+                                false);
+        }
+
+        private void cancelPendingHomeTeleport(
+                        UUID playerUuid,
+                        boolean sendMessage) {
+                PendingHomeTeleport pending = pendingHomeTeleports.remove(
+                                playerUuid);
+
+                if (pending == null) {
+                        return;
+                }
+
+                pending.task().cancel();
+
+                if (!sendMessage) {
+                        return;
+                }
+
+                Player player = Bukkit.getPlayer(
+                                playerUuid);
+
+                if (player != null
+                                && player.isOnline()) {
+                        sendMessage(
+                                        player,
+                                        "messages.teleport-cancelled",
+                                        "<red>Teleport cancelled because you moved.</red>");
+                }
+        }
+
+        private record PendingHomeTeleport(
+                        Location origin,
+                        BukkitTask task) {
         }
 
         private void handleSetHome(

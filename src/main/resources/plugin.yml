@@ -11,3 +11,8 @@ commands:
     usage: /island
     aliases:
       - is
+
+permissions:
+  skyfoundry.admin.bypass:
+    description: Bypass SkyFoundry island protection.
+    default: op

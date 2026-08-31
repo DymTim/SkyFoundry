@@ -83,6 +83,8 @@ protection:
   block-place: true
   interaction: true
   entities: true
+  pistons: true
+  environment: true
 
   prevent-building-outside-islands: true
 
