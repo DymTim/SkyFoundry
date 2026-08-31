@@ -1,13 +1,17 @@
 package net.skyfoundry;
 
+import net.skyfoundry.storage.Database;
 import net.skyfoundry.world.VoidChunkGenerator;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.sql.SQLException;
+
 public final class SkyFoundry extends JavaPlugin {
 
     private World islandWorld;
+    private Database database;
 
     @Override
     public void onEnable() {
@@ -18,6 +22,13 @@ public final class SkyFoundry extends JavaPlugin {
 
         if (!setupIslandWorld()) {
             getLogger().severe("Failed to load the SkyFoundry island world.");
+            getLogger().severe("SkyFoundry will now disable.");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
+        if (!setupDatabase()) {
+            getLogger().severe("Failed to initialize the SkyFoundry database.");
             getLogger().severe("SkyFoundry will now disable.");
             getServer().getPluginManager().disablePlugin(this);
             return;
@@ -39,6 +50,10 @@ public final class SkyFoundry extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (database != null) {
+            database.close();
+        }
+
         getLogger().info("SkyFoundry disabled.");
     }
 
@@ -50,7 +65,8 @@ public final class SkyFoundry extends JavaPlugin {
 
         if (existingWorld != null) {
             islandWorld = existingWorld;
-            getLogger().info("Loaded existing island world '" + worldName + "'.");
+            getLogger().info(
+                    "Loaded existing island world '" + worldName + "'.");
             return true;
         }
 
@@ -99,7 +115,27 @@ public final class SkyFoundry extends JavaPlugin {
         }
     }
 
+    private boolean setupDatabase() {
+        database = new Database(this);
+
+        try {
+            database.initialize();
+            getLogger().info("SQLite database initialized.");
+            return true;
+        } catch (SQLException exception) {
+            getLogger().severe(
+                    "SQLite initialization failed: "
+                            + exception.getMessage());
+
+            return false;
+        }
+    }
+
     public World getIslandWorld() {
         return islandWorld;
+    }
+
+    public Database getDatabase() {
+        return database;
     }
 }
