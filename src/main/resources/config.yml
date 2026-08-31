@@ -38,6 +38,14 @@ islands:
   # Whether each player may only own one island.
   one-per-player: true
 
+  # Player spawn position relative to the schematic paste origin.
+  spawn-offset:
+    x: 0.5
+    y: 3.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0
+
 # ------------------------------------------------------------
 # Starter Schematic
 # ------------------------------------------------------------

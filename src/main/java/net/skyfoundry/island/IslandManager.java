@@ -18,259 +18,281 @@ import java.util.UUID;
 
 public final class IslandManager {
 
-    private final SkyFoundry plugin;
-    private final Database database;
-    private final World islandWorld;
-    private final IslandPositioner positioner;
+        private final SkyFoundry plugin;
+        private final Database database;
+        private final World islandWorld;
+        private final IslandPositioner positioner;
 
-    private final Map<UUID, Island> islands = new HashMap<>();
+        private final Map<UUID, Island> islands = new HashMap<>();
 
-    public IslandManager(
-            SkyFoundry plugin,
-            Database database,
-            World islandWorld) {
-        this.plugin = plugin;
-        this.database = database;
-        this.islandWorld = islandWorld;
+        public IslandManager(
+                        SkyFoundry plugin,
+                        Database database,
+                        World islandWorld) {
+                this.plugin = plugin;
+                this.database = database;
+                this.islandWorld = islandWorld;
 
-        int spacing = plugin.getConfig().getInt(
-                "islands.spacing",
-                500);
+                int spacing = plugin.getConfig().getInt(
+                                "islands.spacing",
+                                500);
 
-        this.positioner = new IslandPositioner(spacing);
-    }
+                this.positioner = new IslandPositioner(spacing);
+        }
 
-    public void loadIslands() throws SQLException {
-        islands.clear();
+        public void loadIslands() throws SQLException {
+                islands.clear();
 
-        String sql = """
-                SELECT
-                    island_id,
-                    owner_uuid,
-                    center_x,
-                    center_z,
-                    home_x,
-                    home_y,
-                    home_z,
-                    home_yaw,
-                    home_pitch,
-                    created_at
-                FROM islands;
-                """;
+                String sql = """
+                                SELECT
+                                    island_id,
+                                    owner_uuid,
+                                    center_x,
+                                    center_z,
+                                    home_x,
+                                    home_y,
+                                    home_z,
+                                    home_yaw,
+                                    home_pitch,
+                                    created_at
+                                FROM islands;
+                                """;
 
-        try (
-                Statement statement = database
-                        .getConnection()
-                        .createStatement();
+                try (
+                                Statement statement = database
+                                                .getConnection()
+                                                .createStatement();
 
-                ResultSet resultSet = statement.executeQuery(sql)) {
-            while (resultSet.next()) {
-                UUID ownerUuid;
+                                ResultSet resultSet = statement.executeQuery(sql)) {
+                        while (resultSet.next()) {
+                                UUID ownerUuid;
 
-                try {
-                    ownerUuid = UUID.fromString(
-                            resultSet.getString("owner_uuid"));
-                } catch (IllegalArgumentException exception) {
-                    plugin.getLogger().warning(
-                            "Skipping island with invalid owner UUID: "
-                                    + resultSet.getString("owner_uuid"));
-                    continue;
+                                try {
+                                        ownerUuid = UUID.fromString(
+                                                        resultSet.getString("owner_uuid"));
+                                } catch (IllegalArgumentException exception) {
+                                        plugin.getLogger().warning(
+                                                        "Skipping island with invalid owner UUID: "
+                                                                        + resultSet.getString("owner_uuid"));
+                                        continue;
+                                }
+
+                                Location home = new Location(
+                                                islandWorld,
+                                                resultSet.getDouble("home_x"),
+                                                resultSet.getDouble("home_y"),
+                                                resultSet.getDouble("home_z"),
+                                                resultSet.getFloat("home_yaw"),
+                                                resultSet.getFloat("home_pitch"));
+
+                                Island island = new Island(
+                                                resultSet.getLong("island_id"),
+                                                ownerUuid,
+                                                resultSet.getInt("center_x"),
+                                                resultSet.getInt("center_z"),
+                                                home,
+                                                resultSet.getLong("created_at"));
+
+                                islands.put(ownerUuid, island);
+                        }
                 }
 
+                plugin.getLogger().info(
+                                "Loaded " + islands.size() + " island(s).");
+        }
+
+        public Island createIsland(UUID ownerUuid) throws SQLException {
+                Island existing = islands.get(ownerUuid);
+
+                if (existing != null) {
+                        return existing;
+                }
+
+                long nextIslandId = getNextIslandId();
+
+                IslandPositioner.IslandPosition position = positioner.getPosition(nextIslandId - 1);
+
+                int creationY = plugin.getConfig().getInt(
+                                "islands.creation-y",
+                                100);
+
+                double spawnOffsetX = plugin.getConfig().getDouble(
+                                "islands.spawn-offset.x",
+                                0.5);
+
+                double spawnOffsetY = plugin.getConfig().getDouble(
+                                "islands.spawn-offset.y",
+                                8.0);
+
+                double spawnOffsetZ = plugin.getConfig().getDouble(
+                                "islands.spawn-offset.z",
+                                0.5);
+
+                float spawnYaw = (float) plugin.getConfig().getDouble(
+                                "islands.spawn-offset.yaw",
+                                0.0);
+
+                float spawnPitch = (float) plugin.getConfig().getDouble(
+                                "islands.spawn-offset.pitch",
+                                0.0);
+
                 Location home = new Location(
-                        islandWorld,
-                        resultSet.getDouble("home_x"),
-                        resultSet.getDouble("home_y"),
-                        resultSet.getDouble("home_z"),
-                        resultSet.getFloat("home_yaw"),
-                        resultSet.getFloat("home_pitch"));
+                                islandWorld,
+                                position.x() + spawnOffsetX,
+                                creationY + spawnOffsetY,
+                                position.z() + spawnOffsetZ,
+                                spawnYaw,
+                                spawnPitch);
+
+                long createdAt = Instant.now().getEpochSecond();
 
                 Island island = new Island(
-                        resultSet.getLong("island_id"),
-                        ownerUuid,
-                        resultSet.getInt("center_x"),
-                        resultSet.getInt("center_z"),
-                        home,
-                        resultSet.getLong("created_at"));
+                                nextIslandId,
+                                ownerUuid,
+                                position.x(),
+                                position.z(),
+                                home,
+                                createdAt);
+
+                insertIsland(island);
 
                 islands.put(ownerUuid, island);
-            }
+
+                return island;
         }
 
-        plugin.getLogger().info(
-                "Loaded " + islands.size() + " island(s).");
-    }
+        public boolean deleteIsland(UUID ownerUuid) throws SQLException {
+                if (!islands.containsKey(ownerUuid)) {
+                        return false;
+                }
 
-    public Island createIsland(UUID ownerUuid) throws SQLException {
-        Island existing = islands.get(ownerUuid);
+                String sql = """
+                                DELETE FROM islands
+                                WHERE owner_uuid = ?;
+                                """;
 
-        if (existing != null) {
-            return existing;
+                try (
+                                PreparedStatement statement = database
+                                                .getConnection()
+                                                .prepareStatement(sql)) {
+                        statement.setString(
+                                        1,
+                                        ownerUuid.toString());
+
+                        int affectedRows = statement.executeUpdate();
+
+                        if (affectedRows == 0) {
+                                return false;
+                        }
+                }
+
+                islands.remove(ownerUuid);
+
+                return true;
         }
 
-        long nextIslandId = getNextIslandId();
+        private void insertIsland(Island island) throws SQLException {
+                String sql = """
+                                INSERT INTO islands (
+                                    island_id,
+                                    owner_uuid,
+                                    center_x,
+                                    center_z,
+                                    home_x,
+                                    home_y,
+                                    home_z,
+                                    home_yaw,
+                                    home_pitch,
+                                    created_at
+                                )
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                                """;
 
-        IslandPositioner.IslandPosition position = positioner.getPosition(nextIslandId - 1);
+                Location home = island.getHome();
 
-        int creationY = plugin.getConfig().getInt(
-                "islands.creation-y",
-                100);
+                try (
+                                PreparedStatement statement = database
+                                                .getConnection()
+                                                .prepareStatement(sql)) {
+                        statement.setLong(
+                                        1,
+                                        island.getIslandId());
 
-        Location home = new Location(
-                islandWorld,
-                position.x() + 0.5,
-                creationY + 1.0,
-                position.z() + 0.5);
+                        statement.setString(
+                                        2,
+                                        island.getOwnerUuid().toString());
 
-        long createdAt = Instant.now().getEpochSecond();
+                        statement.setInt(
+                                        3,
+                                        island.getCenterX());
 
-        Island island = new Island(
-                nextIslandId,
-                ownerUuid,
-                position.x(),
-                position.z(),
-                home,
-                createdAt);
+                        statement.setInt(
+                                        4,
+                                        island.getCenterZ());
 
-        insertIsland(island);
+                        statement.setDouble(
+                                        5,
+                                        home.getX());
 
-        islands.put(ownerUuid, island);
+                        statement.setDouble(
+                                        6,
+                                        home.getY());
 
-        return island;
-    }
+                        statement.setDouble(
+                                        7,
+                                        home.getZ());
 
-    public boolean deleteIsland(UUID ownerUuid) throws SQLException {
-        if (!islands.containsKey(ownerUuid)) {
-            return false;
+                        statement.setFloat(
+                                        8,
+                                        home.getYaw());
+
+                        statement.setFloat(
+                                        9,
+                                        home.getPitch());
+
+                        statement.setLong(
+                                        10,
+                                        island.getCreatedAt());
+
+                        statement.executeUpdate();
+                }
         }
 
-        String sql = """
-                DELETE FROM islands
-                WHERE owner_uuid = ?;
-                """;
+        private long getNextIslandId() throws SQLException {
+                String sql = """
+                                SELECT seq
+                                FROM sqlite_sequence
+                                WHERE name = 'islands';
+                                """;
 
-        try (
-                PreparedStatement statement = database
-                        .getConnection()
-                        .prepareStatement(sql)) {
-            statement.setString(
-                    1,
-                    ownerUuid.toString());
+                try (
+                                Statement statement = database
+                                                .getConnection()
+                                                .createStatement();
 
-            int affectedRows = statement.executeUpdate();
+                                ResultSet resultSet = statement.executeQuery(sql)) {
+                        if (resultSet.next()) {
+                                return resultSet.getLong("seq") + 1;
+                        }
+                }
 
-            if (affectedRows == 0) {
-                return false;
-            }
+                return 1;
         }
 
-        islands.remove(ownerUuid);
-
-        return true;
-    }
-
-    private void insertIsland(Island island) throws SQLException {
-        String sql = """
-                INSERT INTO islands (
-                    island_id,
-                    owner_uuid,
-                    center_x,
-                    center_z,
-                    home_x,
-                    home_y,
-                    home_z,
-                    home_yaw,
-                    home_pitch,
-                    created_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                """;
-
-        Location home = island.getHome();
-
-        try (
-                PreparedStatement statement = database
-                        .getConnection()
-                        .prepareStatement(sql)) {
-            statement.setLong(
-                    1,
-                    island.getIslandId());
-
-            statement.setString(
-                    2,
-                    island.getOwnerUuid().toString());
-
-            statement.setInt(
-                    3,
-                    island.getCenterX());
-
-            statement.setInt(
-                    4,
-                    island.getCenterZ());
-
-            statement.setDouble(
-                    5,
-                    home.getX());
-
-            statement.setDouble(
-                    6,
-                    home.getY());
-
-            statement.setDouble(
-                    7,
-                    home.getZ());
-
-            statement.setFloat(
-                    8,
-                    home.getYaw());
-
-            statement.setFloat(
-                    9,
-                    home.getPitch());
-
-            statement.setLong(
-                    10,
-                    island.getCreatedAt());
-
-            statement.executeUpdate();
-        }
-    }
-
-    private long getNextIslandId() throws SQLException {
-        String sql = """
-                SELECT seq
-                FROM sqlite_sequence
-                WHERE name = 'islands';
-                """;
-
-        try (
-                Statement statement = database
-                        .getConnection()
-                        .createStatement();
-
-                ResultSet resultSet = statement.executeQuery(sql)) {
-            if (resultSet.next()) {
-                return resultSet.getLong("seq") + 1;
-            }
+        public Optional<Island> getIsland(UUID ownerUuid) {
+                return Optional.ofNullable(
+                                islands.get(ownerUuid));
         }
 
-        return 1;
-    }
+        public boolean hasIsland(UUID ownerUuid) {
+                return islands.containsKey(ownerUuid);
+        }
 
-    public Optional<Island> getIsland(UUID ownerUuid) {
-        return Optional.ofNullable(
-                islands.get(ownerUuid));
-    }
+        public Map<UUID, Island> getIslands() {
+                return Collections.unmodifiableMap(islands);
+        }
 
-    public boolean hasIsland(UUID ownerUuid) {
-        return islands.containsKey(ownerUuid);
-    }
-
-    public Map<UUID, Island> getIslands() {
-        return Collections.unmodifiableMap(islands);
-    }
-
-    public int getIslandCount() {
-        return islands.size();
-    }
+        public int getIslandCount() {
+                return islands.size();
+        }
 }
