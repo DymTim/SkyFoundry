@@ -1,29 +1,29 @@
 name: SkyFoundry
 version: "${version}"
-main: net.skyfoundry.core.SkyFoundry
+main: net.skyfoundry.SkyFoundry
 api-version: "1.21"
 
 author: SkyFoundry
-description: Custom skyblock core for the SkyFoundry server.
+description: The core Skyblock platform for the SkyFoundry server.
 
 commands:
   island:
-    description: Manage your SkyFoundry island.
+    description: Main SkyFoundry island command.
     usage: /island
     aliases:
       - is
 
   skyfoundry:
-    description: Administrative command for SkyFoundry.
+    description: SkyFoundry administration command.
     usage: /skyfoundry
     aliases:
       - sf
 
 permissions:
+  skyfoundry.command.island:
+    description: Allows access to the main island command.
+    default: true
+
   skyfoundry.admin:
     description: Allows access to SkyFoundry administrative commands.
-    default: op
-
-  skyfoundry.admin.bypass:
-    description: Bypasses SkyFoundry island protection.
     default: op
