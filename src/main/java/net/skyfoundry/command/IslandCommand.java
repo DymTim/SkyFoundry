@@ -2,7 +2,6 @@ package net.skyfoundry.command;
 
 import net.skyfoundry.SkyFoundry;
 import net.skyfoundry.island.Island;
-import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -21,6 +20,8 @@ public final class IslandCommand implements CommandExecutor {
     private final SkyFoundry plugin;
 
     private final Map<UUID, Long> deletionConfirmations = new HashMap<>();
+
+    private final Map<UUID, Boolean> creatingIslands = new HashMap<>();
 
     public IslandCommand(SkyFoundry plugin) {
         this.plugin = plugin;
@@ -63,31 +64,97 @@ public final class IslandCommand implements CommandExecutor {
     }
 
     private void handleCreate(Player player) {
-        UUID playerUuid = player.getUniqueId();
+        UUID uuid = player.getUniqueId();
 
-        if (plugin.getIslandManager().hasIsland(playerUuid)) {
-            send(
-                    player,
-                    "messages.island-already-exists");
+        if (plugin.getIslandManager().hasIsland(uuid)) {
+            send(player, "messages.island-already-exists");
             return;
         }
+
+        if (creatingIslands.containsKey(uuid)) {
+            sendRaw(
+                    player,
+                    "<yellow>Your island is already being created.</yellow>");
+            return;
+        }
+
+        creatingIslands.put(uuid, true);
+
+        sendRaw(
+                player,
+                "<gray>Creating your island...</gray>");
+
+        plugin.getSchematicManager()
+                .loadStarterSchematic()
+                .thenAccept(schematic -> plugin.getServer()
+                        .getScheduler()
+                        .runTask(
+                                plugin,
+                                () -> createIslandRecord(
+                                        player,
+                                        schematic)))
+                .exceptionally(exception -> {
+                    creatingIslands.remove(uuid);
+
+                    plugin.getLogger().severe(
+                            "Failed to load starter schematic: "
+                                    + exception.getMessage());
+
+                    plugin.getServer()
+                            .getScheduler()
+                            .runTask(
+                                    plugin,
+                                    () -> send(
+                                            player,
+                                            "messages.island-create-failed"));
+
+                    return null;
+                });
+    }
+
+    private void createIslandRecord(
+            Player player,
+            net.skyfoundry.schematic.LoadedSchematic schematic) {
+        UUID uuid = player.getUniqueId();
 
         try {
             Island island = plugin
                     .getIslandManager()
-                    .createIsland(playerUuid);
+                    .createIsland(uuid);
 
-            createTemporaryPlatform(island);
+            plugin.getSchematicManager()
+                    .paste(island, schematic)
+                    .thenRun(() -> {
+                        creatingIslands.remove(uuid);
 
-            send(
-                    player,
-                    "messages.island-created");
+                        send(
+                                player,
+                                "messages.island-created");
 
-            player.teleport(island.getHome());
+                        player.teleport(
+                                island.getHome());
+                    })
+                    .exceptionally(exception -> {
+                        creatingIslands.remove(uuid);
+
+                        plugin.getLogger().severe(
+                                "Failed to paste island for "
+                                        + player.getName()
+                                        + ": "
+                                        + exception.getMessage());
+
+                        send(
+                                player,
+                                "messages.island-create-failed");
+
+                        return null;
+                    });
 
         } catch (SQLException exception) {
+            creatingIslands.remove(uuid);
+
             plugin.getLogger().severe(
-                    "Failed to create island for "
+                    "Failed to create island record for "
                             + player.getName()
                             + ": "
                             + exception.getMessage());
@@ -104,15 +171,11 @@ public final class IslandCommand implements CommandExecutor {
                 .getIsland(player.getUniqueId());
 
         if (islandOptional.isEmpty()) {
-            send(
-                    player,
-                    "messages.island-not-found");
+            send(player, "messages.island-not-found");
             return;
         }
 
-        send(
-                player,
-                "messages.teleporting");
+        send(player, "messages.teleporting");
 
         player.teleport(
                 islandOptional.get().getHome());
@@ -121,16 +184,10 @@ public final class IslandCommand implements CommandExecutor {
     private void handleDelete(
             Player player,
             String[] args) {
-        UUID playerUuid = player.getUniqueId();
+        UUID uuid = player.getUniqueId();
 
-        Optional<Island> islandOptional = plugin
-                .getIslandManager()
-                .getIsland(playerUuid);
-
-        if (islandOptional.isEmpty()) {
-            send(
-                    player,
-                    "messages.island-not-found");
+        if (!plugin.getIslandManager().hasIsland(uuid)) {
+            send(player, "messages.island-not-found");
             return;
         }
 
@@ -155,44 +212,38 @@ public final class IslandCommand implements CommandExecutor {
     }
 
     private void requestDeleteConfirmation(Player player) {
-        int timeoutSeconds = Math.max(
+        int timeout = Math.max(
                 1,
                 plugin.getConfig().getInt(
                         "deletion.confirmation-timeout-seconds",
                         30));
 
-        long expiresAt = System.currentTimeMillis()
-                + (timeoutSeconds * 1000L);
-
         deletionConfirmations.put(
                 player.getUniqueId(),
-                expiresAt);
+                System.currentTimeMillis()
+                        + timeout * 1000L);
 
         String message = plugin.getConfig().getString(
                 "messages.island-delete-confirm",
                 "<red>Run <gold>/island delete confirm</gold> "
-                        + "within <yellow>{seconds}</yellow> seconds "
-                        + "to delete your island.</red>");
+                        + "within <yellow>{seconds}</yellow> seconds.</red>");
 
-        if (message == null || message.isBlank()) {
-            return;
+        if (message != null && !message.isBlank()) {
+            sendRaw(
+                    player,
+                    message.replace(
+                            "{seconds}",
+                            Integer.toString(timeout)));
         }
-
-        message = message.replace(
-                "{seconds}",
-                Integer.toString(timeoutSeconds));
-
-        sendRaw(player, message);
     }
 
     private void confirmDelete(Player player) {
-        UUID playerUuid = player.getUniqueId();
+        UUID uuid = player.getUniqueId();
 
-        Long expiresAt = deletionConfirmations.remove(
-                playerUuid);
+        Long expiration = deletionConfirmations.remove(uuid);
 
-        if (expiresAt == null
-                || System.currentTimeMillis() > expiresAt) {
+        if (expiration == null
+                || System.currentTimeMillis() > expiration) {
             send(
                     player,
                     "messages.island-delete-confirm-expired");
@@ -203,25 +254,21 @@ public final class IslandCommand implements CommandExecutor {
     }
 
     private void deleteIsland(Player player) {
-        UUID playerUuid = player.getUniqueId();
-
         try {
             boolean deleted = plugin
                     .getIslandManager()
-                    .deleteIsland(playerUuid);
+                    .deleteIsland(
+                            player.getUniqueId());
 
-            deletionConfirmations.remove(playerUuid);
+            deletionConfirmations.remove(
+                    player.getUniqueId());
 
             if (!deleted) {
-                send(
-                        player,
-                        "messages.island-not-found");
+                send(player, "messages.island-not-found");
                 return;
             }
 
-            send(
-                    player,
-                    "messages.island-deleted");
+            send(player, "messages.island-deleted");
 
         } catch (SQLException exception) {
             plugin.getLogger().severe(
@@ -234,44 +281,6 @@ public final class IslandCommand implements CommandExecutor {
                     player,
                     "messages.island-delete-failed");
         }
-    }
-
-    private void createTemporaryPlatform(Island island) {
-        Material material = getPlatformMaterial();
-
-        int y = plugin.getConfig().getInt(
-                "islands.creation-y",
-                100);
-
-        plugin.getIslandWorld()
-                .getBlockAt(
-                        island.getCenterX(),
-                        y,
-                        island.getCenterZ())
-                .setType(material, false);
-    }
-
-    private Material getPlatformMaterial() {
-        String configuredMaterial = plugin
-                .getConfig()
-                .getString(
-                        "islands.temporary-platform-block",
-                        "STONE");
-
-        Material material = Material.matchMaterial(
-                configuredMaterial);
-
-        if (material == null
-                || !material.isBlock()) {
-            plugin.getLogger().warning(
-                    "Invalid islands.temporary-platform-block '"
-                            + configuredMaterial
-                            + "'. Using STONE.");
-
-            return Material.STONE;
-        }
-
-        return material;
     }
 
     private void sendUsage(Player player) {

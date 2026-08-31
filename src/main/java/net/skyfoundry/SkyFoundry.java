@@ -2,12 +2,14 @@ package net.skyfoundry;
 
 import net.skyfoundry.command.IslandCommand;
 import net.skyfoundry.island.IslandManager;
+import net.skyfoundry.schematic.SchematicManager;
 import net.skyfoundry.storage.Database;
 import net.skyfoundry.world.VoidChunkGenerator;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
 import java.sql.SQLException;
 
 public final class SkyFoundry extends JavaPlugin {
@@ -15,13 +17,17 @@ public final class SkyFoundry extends JavaPlugin {
     private World islandWorld;
     private Database database;
     private IslandManager islandManager;
+    private SchematicManager schematicManager;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        saveStarterSchematic();
 
         getLogger().info(
-                "SkyFoundry v" + getPluginMeta().getVersion() + " enabling...");
+                "SkyFoundry v"
+                        + getPluginMeta().getVersion()
+                        + " enabling...");
 
         if (!setupIslandWorld()) {
             getLogger().severe(
@@ -44,6 +50,8 @@ public final class SkyFoundry extends JavaPlugin {
             return;
         }
 
+        schematicManager = new SchematicManager(this);
+
         getCommand("island").setExecutor(
                 new IslandCommand(this));
 
@@ -64,6 +72,34 @@ public final class SkyFoundry extends JavaPlugin {
         }
 
         getLogger().info("SkyFoundry disabled.");
+    }
+
+    private void saveStarterSchematic() {
+        String fileName = getConfig().getString(
+                "schematic.file",
+                "starter.schem");
+
+        File schematicFile = new File(
+                getDataFolder(),
+                fileName);
+
+        if (schematicFile.exists()) {
+            return;
+        }
+
+        try {
+            saveResource(fileName, false);
+
+            getLogger().info(
+                    "Saved default schematic '"
+                            + fileName
+                            + "'.");
+        } catch (IllegalArgumentException exception) {
+            getLogger().warning(
+                    "No bundled schematic named '"
+                            + fileName
+                            + "' was found.");
+        }
     }
 
     private boolean setupIslandWorld() {
@@ -122,7 +158,9 @@ public final class SkyFoundry extends JavaPlugin {
 
     private World.Environment getConfiguredEnvironment() {
         String configuredEnvironment = getConfig()
-                .getString("world.environment", "NORMAL")
+                .getString(
+                        "world.environment",
+                        "NORMAL")
                 .toUpperCase();
 
         try {
@@ -178,7 +216,8 @@ public final class SkyFoundry extends JavaPlugin {
     }
 
     private void logDebugInformation() {
-        getLogger().info("Debug logging is enabled.");
+        getLogger().info(
+                "Debug logging is enabled.");
 
         getLogger().info(
                 "Running on Minecraft "
@@ -216,5 +255,9 @@ public final class SkyFoundry extends JavaPlugin {
 
     public IslandManager getIslandManager() {
         return islandManager;
+    }
+
+    public SchematicManager getSchematicManager() {
+        return schematicManager;
     }
 }
