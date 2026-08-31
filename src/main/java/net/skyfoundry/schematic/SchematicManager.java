@@ -16,6 +16,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.Chest;
 import org.bukkit.block.Container;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.inventory.Inventory;
@@ -206,10 +207,16 @@ public final class SchematicManager {
                                                         blockData));
                 }
 
-                if (plugin.getConfig().getBoolean("debug.enabled", false)) {
+                if (plugin.getConfig().getBoolean(
+                                "debug.enabled",
+                                false)) {
                         plugin.getLogger().info(
                                         "Loaded schematic "
-                                                        + width + "x" + height + "x" + length
+                                                        + width
+                                                        + "x"
+                                                        + height
+                                                        + "x"
+                                                        + length
                                                         + " with "
                                                         + blocks.size()
                                                         + " block(s) and "
@@ -249,13 +256,13 @@ public final class SchematicManager {
                 List<SchematicBlock> blocks = schematic.blocks();
 
                 if (blocks.isEmpty()) {
-                        pasteBlockEntities(
+                        scheduleBlockEntityPaste(
                                         schematic,
                                         baseX,
                                         baseY,
-                                        baseZ);
+                                        baseZ,
+                                        future);
 
-                        future.complete(null);
                         return future;
                 }
 
@@ -301,17 +308,17 @@ public final class SchematicManager {
                                                 if (index[0] >= blocks.size()) {
                                                         task[0].cancel();
 
-                                                        pasteBlockEntities(
+                                                        scheduleBlockEntityPaste(
                                                                         schematic,
                                                                         baseX,
                                                                         baseY,
-                                                                        baseZ);
-
-                                                        future.complete(null);
+                                                                        baseZ,
+                                                                        future);
                                                 }
 
                                         } catch (Exception exception) {
                                                 task[0].cancel();
+
                                                 future.completeExceptionally(
                                                                 exception);
                                         }
@@ -322,17 +329,44 @@ public final class SchematicManager {
                 return future;
         }
 
+        private void scheduleBlockEntityPaste(
+                        LoadedSchematic schematic,
+                        int baseX,
+                        int baseY,
+                        int baseZ,
+                        CompletableFuture<Void> future) {
+                Bukkit.getScheduler().runTaskLater(
+                                plugin,
+                                () -> {
+                                        try {
+                                                pasteBlockEntities(
+                                                                schematic,
+                                                                baseX,
+                                                                baseY,
+                                                                baseZ);
+
+                                                future.complete(null);
+
+                                        } catch (Exception exception) {
+                                                future.completeExceptionally(
+                                                                exception);
+                                        }
+                                },
+                                1L);
+        }
+
         private void pasteBlockEntities(
                         LoadedSchematic schematic,
                         int baseX,
                         int baseY,
                         int baseZ) {
                 for (SchematicBlockEntity blockEntity : schematic.blockEntities()) {
-
-                        Block block = plugin.getIslandWorld().getBlockAt(
-                                        baseX + blockEntity.x(),
-                                        baseY + blockEntity.y(),
-                                        baseZ + blockEntity.z());
+                        Block block = plugin
+                                        .getIslandWorld()
+                                        .getBlockAt(
+                                                        baseX + blockEntity.x(),
+                                                        baseY + blockEntity.y(),
+                                                        baseZ + blockEntity.z());
 
                         if (!(block.getState() instanceof Container container)) {
                                 plugin.getLogger().warning(
@@ -343,6 +377,7 @@ public final class SchematicManager {
                                                                 + ", "
                                                                 + block.getZ()
                                                                 + " is not a Bukkit container.");
+
                                 continue;
                         }
 
@@ -360,10 +395,23 @@ public final class SchematicManager {
                 if (!(itemsTag instanceof ListTag<?> items)) {
                         plugin.getLogger().warning(
                                         "Container schematic data contains no Items list.");
+
                         return;
                 }
 
-                Inventory inventory = container.getInventory();
+                /*
+                 * Chest#getInventory() can represent the combined inventory of a
+                 * double chest. We only want the inventory belonging to the exact
+                 * chest block stored in the schematic.
+                 */
+                Inventory inventory;
+
+                if (container instanceof Chest chest) {
+                        inventory = chest.getBlockInventory();
+                } else {
+                        inventory = container.getInventory();
+                }
+
                 inventory.clear();
 
                 int restoredItems = 0;
@@ -378,10 +426,12 @@ public final class SchematicManager {
                                         "Slot",
                                         -1);
 
-                        if (slot < 0 || slot >= inventory.getSize()) {
+                        if (slot < 0
+                                        || slot >= inventory.getSize()) {
                                 plugin.getLogger().warning(
                                                 "Skipping schematic item with invalid slot "
                                                                 + slot);
+
                                 continue;
                         }
 
@@ -398,6 +448,7 @@ public final class SchematicManager {
                         if (itemId == null) {
                                 plugin.getLogger().warning(
                                                 "Skipping schematic item without an id.");
+
                                 continue;
                         }
 
@@ -426,11 +477,13 @@ public final class SchematicManager {
                                                 true);
                         }
 
-                        if (material == null || !material.isItem()) {
+                        if (material == null
+                                        || !material.isItem()) {
                                 plugin.getLogger().warning(
                                                 "Unable to restore schematic item '"
                                                                 + itemId
                                                                 + "'.");
+
                                 continue;
                         }
 
@@ -447,11 +500,9 @@ public final class SchematicManager {
                         restoredItems++;
                 }
 
-                container.update(
-                                true,
-                                false);
-
-                if (plugin.getConfig().getBoolean("debug.enabled", false)) {
+                if (plugin.getConfig().getBoolean(
+                                "debug.enabled",
+                                false)) {
                         plugin.getLogger().info(
                                         "Restored "
                                                         + restoredItems
@@ -484,11 +535,13 @@ public final class SchematicManager {
                                 continue;
                         }
 
-                        int[] position = readPosition(entry);
+                        int[] position = readPosition(
+                                        entry);
 
                         if (position == null) {
                                 plugin.getLogger().warning(
                                                 "Skipping schematic block entity without Pos.");
+
                                 continue;
                         }
 
