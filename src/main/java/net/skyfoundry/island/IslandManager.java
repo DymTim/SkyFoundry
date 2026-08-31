@@ -14,9 +14,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -979,6 +981,25 @@ public final class IslandManager {
                 }
 
                 return count;
+        }
+
+        public List<IslandMember> getMembers(
+                        Island island) {
+                List<IslandMember> islandMembers = new ArrayList<>();
+
+                for (Map.Entry<UUID, Island> entry : islandsByPlayer.entrySet()) {
+                        if (entry.getValue().getIslandId() != island.getIslandId()) {
+                                continue;
+                        }
+
+                        IslandMember member = members.get(entry.getKey());
+
+                        if (member != null) {
+                                islandMembers.add(member);
+                        }
+                }
+
+                return Collections.unmodifiableList(islandMembers);
         }
 
         public Collection<Island> getIslands() {

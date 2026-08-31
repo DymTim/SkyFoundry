@@ -47,6 +47,7 @@ invites:
 transfer:
   confirmation-timeout-seconds: 30
 
+
 # ------------------------------------------------------------
 # Addons
 # ------------------------------------------------------------
@@ -132,6 +133,7 @@ deletion:
 storage:
   # SQLite database file stored inside plugins/SkyFoundry/.
   database-file: "skyfoundry.db"
+
 
 # ------------------------------------------------------------
 # Island Info
@@ -301,8 +303,165 @@ gui:
         lore:
           - "<gray>Close this menu.</gray>"
 
+  members:
+    title: "<gold><bold>⚙ ISLAND MEMBERS</bold></gold>"
+
+    filler:
+      material: "GRAY_STAINED_GLASS_PANE"
+      name: " "
+
+    accents:
+      enabled: true
+      material: "ORANGE_STAINED_GLASS_PANE"
+      name: " "
+      slots: [0, 4, 8]
+
+    member-slots: [11, 12, 13, 14, 15, 20, 21, 22, 23, 24, 29, 30, 31, 32, 33]
+
+    member:
+      name: "<yellow><bold>{player}</bold></yellow>"
+      lore:
+        - "<gray>Role: <yellow>{role}</yellow></gray>"
+        - "<gray>Status: {status_color}{status}</gray>"
+        - ""
+        - "<gold>Click to view member.</gold>"
+
+    buttons:
+      invite:
+        slot: 36
+        material: "NAME_TAG"
+        name: "<yellow><bold>Invite Player</bold></yellow>"
+        lore:
+          - "<gray>Invite another player to</gray>"
+          - "<gray>join this island.</gray>"
+          - ""
+          - "<gold>Click for invite instructions.</gold>"
+
+      back:
+        slot: 40
+        material: "ARROW"
+        name: "<yellow><bold>Back</bold></yellow>"
+        lore:
+          - "<gray>Return to the island menu.</gray>"
+
+      close:
+        slot: 44
+        material: "BARRIER"
+        name: "<red><bold>Close</bold></red>"
+        lore:
+          - "<gray>Close this menu.</gray>"
+
+  member:
+    title: "<gold><bold>⚙ ISLAND MEMBER</bold></gold>"
+
+    filler:
+      material: "GRAY_STAINED_GLASS_PANE"
+      name: " "
+
+    accents:
+      enabled: true
+      material: "ORANGE_STAINED_GLASS_PANE"
+      name: " "
+      slots: [0, 4, 8]
+
+    profile:
+      name: "<yellow><bold>{player}</bold></yellow>"
+      lore:
+        - "<gray>Role: <yellow>{role}</yellow></gray>"
+        - "<gray>Status: {status_color}{status}</gray>"
+
+    buttons:
+      profile:
+        slot: 13
+
+      promote:
+        slot: 20
+        material: "GOLD_INGOT"
+        name: "<gold><bold>Promote to Co-Owner</bold></gold>"
+        lore:
+          - "<gray>Give this member additional</gray>"
+          - "<gray>island management permissions.</gray>"
+          - ""
+          - "<gold>Click to promote.</gold>"
+
+      demote:
+        slot: 20
+        material: "IRON_INGOT"
+        name: "<yellow><bold>Demote to Member</bold></yellow>"
+        lore:
+          - "<gray>Remove this player's</gray>"
+          - "<gray>Co-Owner permissions.</gray>"
+          - ""
+          - "<gold>Click to demote.</gold>"
+
+      transfer:
+        slot: 22
+        material: "NETHER_STAR"
+        name: "<gold><bold>Transfer Ownership</bold></gold>"
+        lore:
+          - "<gray>Make this player the new</gray>"
+          - "<gray>owner of the island.</gray>"
+          - ""
+          - "<red>You will become a Co-Owner.</red>"
+          - "<gold>Click to continue.</gold>"
+
+      kick:
+        slot: 24
+        material: "OAK_DOOR"
+        name: "<red><bold>Kick Member</bold></red>"
+        lore:
+          - "<gray>Remove this player from</gray>"
+          - "<gray>the island.</gray>"
+          - ""
+          - "<red>Click to continue.</red>"
+
+      back:
+        slot: 40
+        material: "ARROW"
+        name: "<yellow><bold>Back</bold></yellow>"
+        lore:
+          - "<gray>Return to island members.</gray>"
+
+      close:
+        slot: 44
+        material: "BARRIER"
+        name: "<red><bold>Close</bold></red>"
+        lore:
+          - "<gray>Close this menu.</gray>"
+
+  member-confirm:
+    title: "<red><bold>⚙ CONFIRM ACTION</bold></red>"
+
+    filler:
+      material: "GRAY_STAINED_GLASS_PANE"
+      name: " "
+
+    accents:
+      enabled: true
+      material: "ORANGE_STAINED_GLASS_PANE"
+      name: " "
+      slots: [0, 4, 8]
+
+    buttons:
+      profile:
+        slot: 13
+
+      confirm:
+        slot: 20
+        material: "LIME_CONCRETE"
+        name: "<green><bold>Confirm</bold></green>"
+
+      cancel:
+        slot: 24
+        material: "RED_CONCRETE"
+        name: "<red><bold>Cancel</bold></red>"
+
+      back:
+        slot: 40
+        material: "ARROW"
+        name: "<yellow><bold>Back</bold></yellow>"
+
   messages:
-    members-coming-soon: "<gray>The island members menu is coming next.</gray>"
     invite-instructions: "<gray>Use <gold>/island invite <player></gold> to invite someone.</gray>"
     upgrades-coming-soon: "<gray>Island upgrades are coming soon.</gray>"
     settings-coming-soon: "<gray>Island settings are coming soon.</gray>"
