@@ -38,6 +38,10 @@ islands:
   # Whether each player may only own one island.
   one-per-player: true
 
+  # Temporary block used while testing island creation.
+  # This will no longer be used once schematic pasting is implemented.
+  temporary-platform-block: "BEDROCK"
+
 # ------------------------------------------------------------
 # Starter Schematic
 # ------------------------------------------------------------

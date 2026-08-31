@@ -1,5 +1,6 @@
 package net.skyfoundry;
 
+import net.skyfoundry.command.IslandCommand;
 import net.skyfoundry.island.IslandManager;
 import net.skyfoundry.storage.Database;
 import net.skyfoundry.world.VoidChunkGenerator;
@@ -42,6 +43,9 @@ public final class SkyFoundry extends JavaPlugin {
             disablePlugin();
             return;
         }
+
+        getCommand("island").setExecutor(
+                new IslandCommand(this));
 
         if (getConfig().getBoolean("debug.enabled", false)) {
             logDebugInformation();
@@ -144,6 +148,7 @@ public final class SkyFoundry extends JavaPlugin {
                     "SQLite database initialized.");
 
             return true;
+
         } catch (SQLException exception) {
             getLogger().severe(
                     "SQLite initialization failed: "
@@ -162,6 +167,7 @@ public final class SkyFoundry extends JavaPlugin {
         try {
             islandManager.loadIslands();
             return true;
+
         } catch (SQLException exception) {
             getLogger().severe(
                     "Failed to load islands: "
