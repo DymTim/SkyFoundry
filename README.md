@@ -1,8 +1,8 @@
-# ⚙️ SkyFoundry
+# ⚙️ Stormbound
 
-A lightweight custom SkyBlock core built for the **SkyFoundry** Minecraft server.
+A lightweight custom SkyBlock core built for the **Stormbound** Minecraft server.
 
-SkyFoundry is being built from scratch for a modded multiplayer SkyBlock experience, with a focus on simplicity, performance, and compatibility with hybrid Bukkit/NeoForge servers.
+Stormbound is being built from scratch for a modded multiplayer SkyBlock experience, with a focus on simplicity, performance, and compatibility with hybrid Bukkit/NeoForge servers.
 
 ## Development
 
@@ -46,11 +46,11 @@ build/libs/
 
 ## License
 
-This project is currently developed specifically for the SkyFoundry server.
+This project is currently developed specifically for the Stormbound server.
 
 ## Addons
 
-SkyFoundry `0.2.0-SNAPSHOT` includes an initial addon API and loader. Addon JARs are loaded from `plugins/SkyFoundry/addons/` and must contain an `addon.yml` file.
+Stormbound `0.2.0-SNAPSHOT` includes an initial addon API and loader. Addon JARs are loaded from `plugins/StormboundSkyblock/addons/` and must contain an `addon.yml` file.
 
 ```yaml
 name: ExampleAddon
@@ -61,4 +61,4 @@ depend: []
 softdepend: []
 ```
 
-Addon main classes extend `net.skyfoundry.api.addon.SkyFoundryAddon`. The included `example-addon/` project is a minimal test addon.
+Addon main classes extend `net.stormbound.skyblock.api.addon.StormboundAddon`. The included `example-addon/` project is a minimal test addon.

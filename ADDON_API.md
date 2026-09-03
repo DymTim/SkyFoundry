@@ -1,13 +1,13 @@
-# SkyFoundry Addon API
+# Stormbound Addon API
 
-SkyFoundry `0.2.0-SNAPSHOT` includes the first addon loader and public API surface.
+Stormbound `0.2.0-SNAPSHOT` includes the first addon loader and public API surface.
 
 ## Addon location
 
 Addon JARs are loaded from:
 
 ```text
-plugins/SkyFoundry/addons/
+plugins/StormboundSkyblock/addons/
 ```
 
 The folder can be changed with `addons.folder` in `config.yml`.
@@ -17,9 +17,9 @@ The folder can be changed with `addons.folder` in `config.yml`.
 Every addon JAR must contain an `addon.yml` at the root of the JAR:
 
 ```yaml
-name: SkyFoundryExample
+name: StormboundExample
 version: 0.1.0-SNAPSHOT
-main: net.skyfoundry.example.ExampleAddon
+main: net.stormbound.example.ExampleAddon
 api-version: 1
 depend: []
 softdepend: []
@@ -28,11 +28,11 @@ softdepend: []
 ## Addon entry point
 
 ```java
-package net.skyfoundry.example;
+package net.stormbound.example;
 
-import net.skyfoundry.api.addon.SkyFoundryAddon;
+import net.stormbound.skyblock.api.addon.StormboundAddon;
 
-public final class ExampleAddon extends SkyFoundryAddon {
+public final class ExampleAddon extends StormboundAddon {
 
     @Override
     public void onLoad() {
@@ -56,7 +56,7 @@ public final class ExampleAddon extends SkyFoundryAddon {
 
 `AddonContext` currently provides:
 
-- SkyFoundry API access
+- Stormbound API access
 - addon logger
 - addon data folder
 - listener registration

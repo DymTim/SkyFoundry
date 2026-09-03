@@ -33,7 +33,7 @@ run/
 server/
 plugins/
 
-# SkyFoundry runtime data
+# Stormbound runtime data
 *.db
 *.db-shm
 *.db-wal

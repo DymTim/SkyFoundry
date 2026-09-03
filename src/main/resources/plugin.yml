@@ -1,9 +1,9 @@
-name: SkyFoundry
+name: StormboundSkyblock
 version: "${version}"
-main: net.skyfoundry.SkyFoundry
+main: net.stormboundmc.skyblock.StormboundSkyblock
 api-version: "1.21"
 
-description: A lightweight custom SkyBlock core built for SkyFoundry.
+description: A lightweight custom SkyBlock core built for Stormbound's SkyFoundry server.
 
 commands:
   island:
@@ -13,6 +13,6 @@ commands:
       - is
 
 permissions:
-  skyfoundry.admin.bypass:
+  stormbound.skyblock.admin:
     description: Bypass SkyFoundry island protection.
     default: op

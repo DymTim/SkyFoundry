@@ -3,7 +3,7 @@ plugins {
     id 'com.gradleup.shadow' version '8.3.6'
 }
 
-group = 'net.skyfoundry'
+group = 'net.stormboundmc'
 version = '0.2.0-SNAPSHOT'
 
 repositories {
@@ -48,11 +48,11 @@ processResources {
 }
 
 shadowJar {
-    archiveBaseName = 'SkyFoundry'
+    archiveBaseName = 'StormboundSkyblock'
     archiveClassifier = ''
 
-    relocate 'org.sqlite', 'net.skyfoundry.libs.sqlite'
-    relocate 'net.querz', 'net.skyfoundry.libs.nbt'
+    relocate 'org.sqlite', 'net.stormboundmc.libs.sqlite'
+    relocate 'net.querz', 'net.stormboundmc.libs.nbt'
 }
 
 build {

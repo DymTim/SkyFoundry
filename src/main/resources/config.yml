@@ -1,5 +1,5 @@
 # ============================================================
-# SkyFoundry Configuration
+# Stormbound Configuration
 # ============================================================
 
 # ------------------------------------------------------------
@@ -8,7 +8,7 @@
 
 world:
   # Name of the SkyBlock world.
-  name: "skyfoundry"
+  name: "stormbound"
 
   # Minecraft environment used for the island world.
   # Valid values:
@@ -47,16 +47,15 @@ invites:
 transfer:
   confirmation-timeout-seconds: 30
 
-
 # ------------------------------------------------------------
 # Addons
 # ------------------------------------------------------------
 
 addons:
-  # Whether SkyFoundry should scan and load addon JARs.
+  # Whether Stormbound should scan and load addon JARs.
   enabled: true
 
-  # Folder inside plugins/SkyFoundry/ used for addon JARs.
+  # Folder inside plugins/StormboundSkyblock/ used for addon JARs.
   folder: "addons"
 
 # ------------------------------------------------------------
@@ -100,7 +99,7 @@ protection:
 
   prevent-building-outside-islands: true
 
-  bypass-permission: "skyfoundry.admin.bypass"
+  bypass-permission: "stormbound.skyblock.admin"
 
 # ------------------------------------------------------------
 # Teleportation
@@ -131,9 +130,8 @@ deletion:
 # ------------------------------------------------------------
 
 storage:
-  # SQLite database file stored inside plugins/SkyFoundry/.
-  database-file: "skyfoundry.db"
-
+  # SQLite database file stored inside plugins/StormboundSkyblock/.
+  database-file: "stormbound.db"
 
 # ------------------------------------------------------------
 # Island Info
@@ -291,7 +289,7 @@ gui:
         material: "GRASS_BLOCK"
         name: "<gold><bold>Create Island</bold></gold>"
         lore:
-          - "<gray>Create your SkyFoundry island</gray>"
+          - "<gray>Create your Stormbound island</gray>"
           - "<gray>and begin building your factory.</gray>"
           - ""
           - "<gold>Click to create.</gold>"
