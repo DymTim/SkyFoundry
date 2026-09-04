@@ -98,7 +98,8 @@ public final class IslandAPIImpl implements IslandAPI {
                 island.getHome().getWorld() == null ? "" : island.getHome().getWorld().getName(),
                 island.getCenterX(),
                 island.getCenterZ(),
-                islandManager.getIslandSize(),
+                islandManager.getIslandSize(island),
+                islandManager.getMemberLimit(island),
                 islandManager.getMemberCount(island),
                 island.getCreatedAt());
     }

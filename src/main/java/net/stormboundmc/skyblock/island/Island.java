@@ -16,6 +16,9 @@ public final class Island {
 
     private final long createdAt;
 
+    private int size;
+    private int memberLimit;
+
     private Location home;
 
     public Island(
@@ -24,13 +27,17 @@ public final class Island {
             int centerX,
             int centerZ,
             Location home,
-            long createdAt) {
+            long createdAt,
+            int size,
+            int memberLimit) {
         this.islandId = islandId;
         this.ownerUuid = ownerUuid;
         this.centerX = centerX;
         this.centerZ = centerZ;
         this.home = home.clone();
         this.createdAt = createdAt;
+        this.size = size;
+        this.memberLimit = memberLimit;
     }
 
     public long getIslandId() {
@@ -57,6 +64,12 @@ public final class Island {
     public long getCreatedAt() {
         return createdAt;
     }
+
+
+    public int getSize() { return size; }
+    public void setSize(int size) { this.size = size; }
+    public int getMemberLimit() { return memberLimit; }
+    public void setMemberLimit(int memberLimit) { this.memberLimit = memberLimit; }
 
     public Location getHome() {
         return home.clone();

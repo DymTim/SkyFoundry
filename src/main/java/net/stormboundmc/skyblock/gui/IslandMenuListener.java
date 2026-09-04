@@ -9,6 +9,8 @@ import net.stormboundmc.skyblock.gui.holder.IslandMenuHolder;
 import net.stormboundmc.skyblock.gui.holder.IslandSettingsMenuHolder;
 import net.stormboundmc.skyblock.gui.holder.IslandTimeMenuHolder;
 import net.stormboundmc.skyblock.gui.holder.IslandWeatherMenuHolder;
+import net.stormboundmc.skyblock.gui.holder.IslandUpgradesMenuHolder;
+import net.stormboundmc.skyblock.island.Island;
 import net.stormboundmc.skyblock.island.IslandManager;
 import net.stormboundmc.skyblock.island.IslandMember;
 import net.stormboundmc.skyblock.island.IslandRole;
@@ -38,6 +40,7 @@ public final class IslandMenuListener implements Listener {
     private final IslandSettingsManager settingsManager;
     private final IslandSettingsMenu islandSettingsMenu;
     private final IslandVisualManager visualManager;
+    private final IslandUpgradesMenu islandUpgradesMenu;
 
     public IslandMenuListener(
             StormboundSkyblock plugin,
@@ -51,6 +54,7 @@ public final class IslandMenuListener implements Listener {
         this.visualManager = visualManager;
         this.islandMenu = new IslandMenu(plugin, islandManager);
         this.islandMembersMenu = new IslandMembersMenu(plugin, islandManager, islandMenu);
+        this.islandUpgradesMenu = new IslandUpgradesMenu(plugin, islandManager);
         this.islandSettingsMenu = new IslandSettingsMenu(
                 plugin,
                 islandManager,
@@ -101,6 +105,11 @@ public final class IslandMenuListener implements Listener {
             return;
         }
 
+        if (holder instanceof IslandUpgradesMenuHolder) {
+            handleUpgradesMenuClick(player, slot);
+            return;
+        }
+
         if (holder instanceof IslandSettingsMenuHolder) {
             handleSettingsMenuClick(player, slot);
             return;
@@ -144,6 +153,7 @@ public final class IslandMenuListener implements Listener {
                 || holder instanceof IslandMemberMenuHolder
                 || holder instanceof IslandMemberConfirmHolder
                 || holder instanceof IslandSettingsMenuHolder
+                || holder instanceof IslandUpgradesMenuHolder
                 || holder instanceof IslandWeatherMenuHolder
                 || holder instanceof IslandTimeMenuHolder;
     }
@@ -195,11 +205,7 @@ public final class IslandMenuListener implements Listener {
         }
 
         if (slot == getSlot("gui.main.buttons.upgrades", 30)) {
-            sendGuiMessage(
-                    player,
-                    "gui.messages.upgrades-coming-soon",
-                    "<gray>Island upgrades are coming soon.</gray>"
-            );
+            islandUpgradesMenu.open(player);
             return;
         }
 
@@ -753,6 +759,32 @@ public final class IslandMenuListener implements Listener {
         }
 
         return viewerRole != IslandRole.CO_OWNER || targetRole == IslandRole.MEMBER;
+    }
+
+    private void handleUpgradesMenuClick(Player player, int slot) {
+        if (slot == getSlot("gui.upgrades.buttons.back", 40)) { islandMenu.open(player); return; }
+        if (slot == getSlot("gui.upgrades.buttons.close", 44)) { player.closeInventory(); return; }
+        Island island = islandManager.getIsland(player.getUniqueId()).orElse(null);
+        IslandRole role = islandManager.getRole(player.getUniqueId()).orElse(null);
+        if (island == null || role == null) return;
+        boolean editable = role == IslandRole.OWNER || role == IslandRole.CO_OWNER;
+        if (!editable) { sendGuiMessage(player,"gui.messages.upgrade-no-permission","<red>Only the Owner or Co-Owner can upgrade the island.</red>"); return; }
+        try {
+            if (slot == getSlot("gui.upgrades.buttons.size", 20)) {
+                if (islandManager.upgradeSize(player.getUniqueId())) {
+                    visualManager.refreshIsland(island);
+                    sendGuiMessage(player,"gui.messages.upgrade-size-success","<green>Island size upgraded to <yellow>{value}x{value}</yellow>.</green>","{value}",String.valueOf(island.getSize()));
+                }
+                islandUpgradesMenu.open(player); return;
+            }
+            if (slot == getSlot("gui.upgrades.buttons.member-limit", 24)) {
+                if (islandManager.upgradeMemberLimit(player.getUniqueId())) sendGuiMessage(player,"gui.messages.upgrade-members-success","<green>Member limit upgraded to <yellow>{value}</yellow>.</green>","{value}",String.valueOf(island.getMemberLimit()));
+                islandUpgradesMenu.open(player);
+            }
+        } catch (SQLException exception) {
+            plugin.getLogger().severe("Failed to upgrade island: " + exception.getMessage());
+            sendGuiMessage(player,"gui.messages.upgrade-failed","<red>Could not save that island upgrade.</red>");
+        }
     }
 
     private void runIslandCommand(Player player, String arguments) {

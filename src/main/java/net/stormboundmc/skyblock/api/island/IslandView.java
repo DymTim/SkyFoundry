@@ -9,6 +9,7 @@ public record IslandView(
                 int centerX,
                 int centerZ,
                 int size,
+                int memberLimit,
                 int memberCount,
                 long createdAt) {
 }

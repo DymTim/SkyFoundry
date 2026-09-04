@@ -182,19 +182,9 @@ public final class IslandCommand
                 int memberCount = islandManager.getMemberCount(
                                 island);
 
-                int memberLimit = Math.max(
-                                1,
-                                plugin.getConfig()
-                                                .getInt(
-                                                                "islands.member-limit",
-                                                                5));
+                int memberLimit = islandManager.getMemberLimit(island);
 
-                int islandSize = Math.max(
-                                1,
-                                plugin.getConfig()
-                                                .getInt(
-                                                                "islands.size",
-                                                                50));
+                int islandSize = islandManager.getIslandSize(island);
 
                 String created = DateTimeFormatter
                                 .ofPattern(
@@ -683,11 +673,7 @@ public final class IslandCommand
 
                 if (!island.contains(
                                 player.getLocation(),
-                                Math.max(
-                                                1,
-                                                plugin.getConfig().getInt(
-                                                                "islands.size",
-                                                                50)))) {
+                                islandManager.getIslandSize(island))) {
                         sendMessage(
                                         player,
                                         "messages.sethome-outside-island",

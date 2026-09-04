@@ -292,8 +292,8 @@ public final class IslandMenu {
                                 : owner.getName();
 
                 int members = islandManager.getMemberCount(island);
-                int limit = Math.max(1, plugin.getConfig().getInt("islands.member-limit", 5));
-                int size = Math.max(1, plugin.getConfig().getInt("islands.size", 50));
+                int limit = islandManager.getMemberLimit(island);
+                int size = islandManager.getIslandSize(island);
 
                 name = replacePlaceholders(
                                 name,

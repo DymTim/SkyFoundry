@@ -84,9 +84,14 @@ public final class Database {
                         home_yaw REAL NOT NULL DEFAULT 0,
                         home_pitch REAL NOT NULL DEFAULT 0,
 
-                        created_at INTEGER NOT NULL
+                        created_at INTEGER NOT NULL,
+                        size INTEGER NOT NULL DEFAULT 50,
+                        member_limit INTEGER NOT NULL DEFAULT 5
                     );
                     """);
+
+            addColumnIfMissing(statement, "islands", "size", "INTEGER NOT NULL DEFAULT 50");
+            addColumnIfMissing(statement, "islands", "member_limit", "INTEGER NOT NULL DEFAULT 5");
 
             statement.executeUpdate("""
                     CREATE UNIQUE INDEX IF NOT EXISTS idx_islands_center
@@ -190,6 +195,16 @@ public final class Database {
         }
 
         return connection;
+    }
+
+    private void addColumnIfMissing(Statement statement, String table, String column, String definition) throws SQLException {
+        try {
+            statement.executeUpdate("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition + ";");
+        } catch (SQLException exception) {
+            if (!exception.getMessage().toLowerCase().contains("duplicate column")) {
+                throw exception;
+            }
+        }
     }
 
     public void close() {

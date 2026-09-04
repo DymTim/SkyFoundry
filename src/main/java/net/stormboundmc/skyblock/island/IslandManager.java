@@ -94,7 +94,9 @@ public final class IslandManager {
                                     home_z,
                                     home_yaw,
                                     home_pitch,
-                                    created_at
+                                    created_at,
+                                    size,
+                                    member_limit
                                 FROM islands;
                                 """;
 
@@ -133,7 +135,9 @@ public final class IslandManager {
                                                 resultSet.getInt("center_x"),
                                                 resultSet.getInt("center_z"),
                                                 home,
-                                                resultSet.getLong("created_at"));
+                                                resultSet.getLong("created_at"),
+                                                normalizeLoadedValue(resultSet.getInt("size"), getSizeTiers()),
+                                                normalizeLoadedValue(resultSet.getInt("member_limit"), getMemberLimitTiers()));
 
                                 islandsById.put(
                                                 island.getIslandId(),
@@ -366,7 +370,9 @@ public final class IslandManager {
                                 position.x(),
                                 position.z(),
                                 home,
-                                createdAt);
+                                createdAt,
+                                getSizeTiers().get(0),
+                                getMemberLimitTiers().get(0));
 
                 insertIsland(
                                 island);
@@ -426,7 +432,7 @@ public final class IslandManager {
                         return false;
                 }
 
-                int size = getIslandSize();
+                int size = getIslandSize(island);
 
                 if (!island.contains(
                                 location,
@@ -513,11 +519,7 @@ public final class IslandManager {
                         return false;
                 }
 
-                int memberLimit = Math.max(
-                                1,
-                                plugin.getConfig().getInt(
-                                                "islands.member-limit",
-                                                5));
+                int memberLimit = getMemberLimit(island);
 
                 if (getMemberCount(island) >= memberLimit) {
 
@@ -627,11 +629,7 @@ public final class IslandManager {
                         return Optional.empty();
                 }
 
-                int memberLimit = Math.max(
-                                1,
-                                plugin.getConfig().getInt(
-                                                "islands.member-limit",
-                                                5));
+                int memberLimit = getMemberLimit(island);
 
                 if (getMemberCount(island) >= memberLimit) {
 
@@ -953,7 +951,7 @@ public final class IslandManager {
                 if (island == null
                                 || !island.contains(
                                                 location,
-                                                getIslandSize())) {
+                                                getIslandSize(island))) {
 
                         return Optional.empty();
                 }
@@ -1140,9 +1138,11 @@ public final class IslandManager {
                                     home_z,
                                     home_yaw,
                                     home_pitch,
-                                    created_at
+                                    created_at,
+                                    size,
+                                    member_limit
                                 )
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                                 """;
 
                 Location home = island.getHome();
@@ -1188,9 +1188,9 @@ public final class IslandManager {
                                         9,
                                         home.getPitch());
 
-                        statement.setLong(
-                                        10,
-                                        island.getCreatedAt());
+                        statement.setLong(10, island.getCreatedAt());
+                        statement.setInt(11, island.getSize());
+                        statement.setInt(12, island.getMemberLimit());
 
                         statement.executeUpdate();
                 }
@@ -1331,18 +1331,79 @@ public final class IslandManager {
         }
 
         public int getIslandSize() {
-                return Math.max(
-                                1,
-                                plugin.getConfig().getInt(
-                                                "islands.size",
-                                                50));
+                return getSizeTiers().get(0);
+        }
+
+        public int getIslandSize(Island island) {
+                return island == null ? getIslandSize() : island.getSize();
+        }
+
+        public int getMemberLimit(Island island) {
+                return island == null ? getMemberLimitTiers().get(0) : island.getMemberLimit();
+        }
+
+        public List<Integer> getSizeTiers() {
+                return getUpgradeTiers("island_upgrades.size.values", List.of(50, 100, 150, 200, 250, 300));
+        }
+
+        public List<Integer> getMemberLimitTiers() {
+                return getUpgradeTiers("island_upgrades.member_limit.values", List.of(5, 6, 7, 8, 9, 10));
+        }
+
+        private List<Integer> getUpgradeTiers(String path, List<Integer> defaults) {
+                List<Integer> configured = plugin.getConfig().getIntegerList(path);
+                List<Integer> values = configured.stream().filter(v -> v != null && v > 0).distinct().sorted().toList();
+                return values.isEmpty() ? defaults : values;
+        }
+
+        private int normalizeLoadedValue(int value, List<Integer> tiers) {
+                if (value <= 0) return tiers.get(0);
+                return value;
+        }
+
+        public Integer getNextSize(Island island) {
+                return getSizeTiers().stream().filter(v -> v > island.getSize()).findFirst().orElse(null);
+        }
+
+        public Integer getNextMemberLimit(Island island) {
+                return getMemberLimitTiers().stream().filter(v -> v > island.getMemberLimit()).findFirst().orElse(null);
+        }
+
+        public boolean upgradeSize(UUID actorUuid) throws SQLException {
+                Island island = islandsByPlayer.get(actorUuid);
+                IslandRole role = getRole(actorUuid).orElse(null);
+                if (island == null || (role != IslandRole.OWNER && role != IslandRole.CO_OWNER)) return false;
+                Integer next = getNextSize(island);
+                if (next == null) return false;
+                try (PreparedStatement statement = database.getConnection().prepareStatement("UPDATE islands SET size = ? WHERE island_id = ?;")) {
+                        statement.setInt(1, next);
+                        statement.setLong(2, island.getIslandId());
+                        statement.executeUpdate();
+                }
+                island.setSize(next);
+                return true;
+        }
+
+        public boolean upgradeMemberLimit(UUID actorUuid) throws SQLException {
+                Island island = islandsByPlayer.get(actorUuid);
+                IslandRole role = getRole(actorUuid).orElse(null);
+                if (island == null || (role != IslandRole.OWNER && role != IslandRole.CO_OWNER)) return false;
+                Integer next = getNextMemberLimit(island);
+                if (next == null) return false;
+                try (PreparedStatement statement = database.getConnection().prepareStatement("UPDATE islands SET member_limit = ? WHERE island_id = ?;")) {
+                        statement.setInt(1, next);
+                        statement.setLong(2, island.getIslandId());
+                        statement.executeUpdate();
+                }
+                island.setMemberLimit(next);
+                return true;
         }
 
         private CompletableFuture<Void> clearIsland(
                         Island island) {
                 CompletableFuture<Void> future = new CompletableFuture<>();
 
-                int islandSize = getIslandSize();
+                int islandSize = getIslandSize(island);
 
                 int positionsPerTick = Math.max(
                                 1,
@@ -1437,7 +1498,7 @@ public final class IslandManager {
                         Island island) {
                 Location destination = getSafeTeleportLocation();
 
-                int islandSize = getIslandSize();
+                int islandSize = getIslandSize(island);
 
                 for (Player player : islandWorld.getPlayers()) {
 
@@ -1788,7 +1849,7 @@ public final class IslandManager {
 
                         if (actorIsland.contains(
                                         targetPlayer.getLocation(),
-                                        getIslandSize())) {
+                                        getIslandSize(actorIsland))) {
                                 targetPlayer.teleport(
                                                 getSafeTeleportLocation());
                         }
