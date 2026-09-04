@@ -218,6 +218,16 @@ public final class IslandMenuListener implements Listener {
             return;
         }
 
+        if (slot == getSlot("gui.main.buttons.nether", 38)) {
+            runIslandCommand(player, "nether");
+            return;
+        }
+
+        if (slot == getSlot("gui.main.buttons.end", 42)) {
+            runIslandCommand(player, "end");
+            return;
+        }
+
         if (slot == getSlot("gui.main.buttons.danger-owner", 36)
                 || slot == getSlot("gui.main.buttons.danger-member", 36)) {
 

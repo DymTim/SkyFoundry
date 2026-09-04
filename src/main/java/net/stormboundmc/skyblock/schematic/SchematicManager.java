@@ -11,6 +11,7 @@ import net.querz.nbt.tag.ShortTag;
 import net.querz.nbt.tag.StringTag;
 import net.querz.nbt.tag.Tag;
 import net.stormboundmc.skyblock.island.Island;
+import net.stormboundmc.skyblock.island.IslandDimension;
 import net.stormboundmc.skyblock.StormboundSkyblock;
 
 import org.bukkit.Bukkit;
@@ -45,6 +46,27 @@ public final class SchematicManager {
                 String fileName = plugin.getConfig().getString(
                                 "schematic.file",
                                 "schematics/starter.schem");
+
+                return loadConfiguredSchematic(fileName);
+        }
+
+        public CompletableFuture<LoadedSchematic> loadDimensionSchematic(IslandDimension dimension) {
+                if (dimension == null || dimension == IslandDimension.OVERWORLD) {
+                        return loadStarterSchematic();
+                }
+
+                String path = "dimensions." + dimension.getConfigKey() + ".schematic";
+                String fallback = "schematics/starter_" + dimension.getConfigKey() + ".schem";
+                String fileName = plugin.getConfig().getString(path, fallback);
+
+                return loadConfiguredSchematic(fileName);
+        }
+
+        public CompletableFuture<LoadedSchematic> loadConfiguredSchematic(String fileName) {
+                if (fileName == null || fileName.isBlank()) {
+                        return CompletableFuture.failedFuture(
+                                        new IOException("Schematic path is blank."));
+                }
 
                 File file = new File(
                                 plugin.getDataFolder(),
@@ -236,7 +258,21 @@ public final class SchematicManager {
         public CompletableFuture<Void> paste(
                         Island island,
                         LoadedSchematic schematic) {
+                return paste(island, IslandDimension.OVERWORLD, schematic);
+        }
+
+        public CompletableFuture<Void> paste(
+                        Island island,
+                        IslandDimension dimension,
+                        LoadedSchematic schematic) {
                 CompletableFuture<Void> future = new CompletableFuture<>();
+
+                World world = plugin.getIslandWorld(dimension);
+                if (world == null) {
+                        return CompletableFuture.failedFuture(
+                                        new IllegalStateException(
+                                                        "Island world for " + dimension.name() + " is not loaded."));
+                }
 
                 int blocksPerTick = Math.max(
                                 1,
@@ -250,14 +286,17 @@ public final class SchematicManager {
                 int baseZ = island.getCenterZ()
                                 - (schematic.length() / 2);
 
-                int baseY = plugin.getConfig().getInt(
-                                "islands.creation-y",
-                                100);
+                int baseY = dimension == IslandDimension.OVERWORLD
+                                ? plugin.getConfig().getInt("islands.creation-y", 100)
+                                : plugin.getConfig().getInt(
+                                                "dimensions." + dimension.getConfigKey() + ".creation-y",
+                                                plugin.getConfig().getInt("islands.creation-y", 100));
 
                 List<SchematicBlock> blocks = schematic.blocks();
 
                 if (blocks.isEmpty()) {
                         scheduleBlockEntityPaste(
+                                        world,
                                         schematic,
                                         baseX,
                                         baseY,
@@ -274,8 +313,6 @@ public final class SchematicManager {
                                 plugin,
                                 () -> {
                                         try {
-                                                World world = plugin.getIslandWorld();
-
                                                 int processed = 0;
 
                                                 while (index[0] < blocks.size()
@@ -310,6 +347,7 @@ public final class SchematicManager {
                                                         task[0].cancel();
 
                                                         scheduleBlockEntityPaste(
+                                                                        world,
                                                                         schematic,
                                                                         baseX,
                                                                         baseY,
@@ -331,6 +369,7 @@ public final class SchematicManager {
         }
 
         private void scheduleBlockEntityPaste(
+                        World world,
                         LoadedSchematic schematic,
                         int baseX,
                         int baseY,
@@ -341,6 +380,7 @@ public final class SchematicManager {
                                 () -> {
                                         try {
                                                 pasteBlockEntities(
+                                                                world,
                                                                 schematic,
                                                                 baseX,
                                                                 baseY,
@@ -357,17 +397,16 @@ public final class SchematicManager {
         }
 
         private void pasteBlockEntities(
+                        World world,
                         LoadedSchematic schematic,
                         int baseX,
                         int baseY,
                         int baseZ) {
                 for (SchematicBlockEntity blockEntity : schematic.blockEntities()) {
-                        Block block = plugin
-                                        .getIslandWorld()
-                                        .getBlockAt(
-                                                        baseX + blockEntity.x(),
-                                                        baseY + blockEntity.y(),
-                                                        baseZ + blockEntity.z());
+                        Block block = world.getBlockAt(
+                                        baseX + blockEntity.x(),
+                                        baseY + blockEntity.y(),
+                                        baseZ + blockEntity.z());
 
                         if (!(block.getState() instanceof Container container)) {
                                 plugin.getLogger().warning(

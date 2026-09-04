@@ -21,6 +21,7 @@ import net.stormboundmc.skyblock.island.IslandVisualManager;
 import net.stormboundmc.skyblock.protection.IslandProtectionListener;
 import net.stormboundmc.skyblock.schematic.SchematicManager;
 import net.stormboundmc.skyblock.storage.Database;
+import net.stormboundmc.skyblock.world.EndWorldControlListener;
 import net.stormboundmc.skyblock.world.VoidChunkGenerator;
 
 import java.io.File;
@@ -41,6 +42,7 @@ public final class StormboundSkyblock extends JavaPlugin {
         private IslandUpgradeManager islandUpgradeManager;
         private SchematicManager schematicManager;
         private AddonManager addonManager;
+        private EndWorldControlListener endWorldControlListener;
 
         @Override
         public void onEnable() {
@@ -57,6 +59,12 @@ public final class StormboundSkyblock extends JavaPlugin {
                                         "Failed to load the Stormbound island world.");
                         disablePlugin();
                         return;
+                }
+
+                World endWorld = islandWorlds.get(IslandDimension.END);
+                if (endWorld != null) {
+                        endWorldControlListener = new EndWorldControlListener(this, endWorld);
+                        endWorldControlListener.initializeWorldState();
                 }
 
                 if (!setupDatabase()) {
@@ -170,30 +178,37 @@ public final class StormboundSkyblock extends JavaPlugin {
         }
 
         private void saveStarterSchematic() {
-                String fileName = getConfig().getString(
-                                "schematic.file",
-                                "starter.schem");
+                saveConfiguredSchematic(
+                                getConfig().getString(
+                                                "schematic.file",
+                                                "schematics/starter.schem"));
 
-                File schematicFile = new File(
-                                getDataFolder(),
-                                fileName);
+                for (IslandDimension dimension : new IslandDimension[] {
+                                IslandDimension.NETHER,
+                                IslandDimension.END }) {
+                        String path = "dimensions." + dimension.getConfigKey() + ".schematic";
+                        String fallback = "schematics/starter_" + dimension.getConfigKey() + ".schem";
+                        saveConfiguredSchematic(getConfig().getString(path, fallback));
+                }
+        }
 
+        private void saveConfiguredSchematic(String fileName) {
+                if (fileName == null || fileName.isBlank()) {
+                        return;
+                }
+
+                File schematicFile = new File(getDataFolder(), fileName);
                 if (schematicFile.exists()) {
                         return;
                 }
 
                 try {
                         saveResource(fileName, false);
-
-                        getLogger().info(
-                                        "Saved default schematic '"
-                                                        + fileName
-                                                        + "'.");
+                        getLogger().info("Saved default schematic '" + fileName + "'.");
                 } catch (IllegalArgumentException exception) {
                         getLogger().warning(
-                                        "No bundled schematic named '"
-                                                        + fileName
-                                                        + "' was found.");
+                                        "No bundled schematic named '" + fileName
+                                                        + "' was found. Add it before generating that dimension.");
                 }
         }
 
@@ -254,14 +269,12 @@ public final class StormboundSkyblock extends JavaPlugin {
         }
 
         private boolean setupAdditionalDimensionWorlds() {
-                for (IslandDimension dimension : new IslandDimension[] { IslandDimension.NETHER,
-                                IslandDimension.END }) {
+                for (IslandDimension dimension : new IslandDimension[]{IslandDimension.NETHER, IslandDimension.END}) {
                         String path = "dimensions." + dimension.getConfigKey();
                         if (!getConfig().getBoolean(path + ".enabled", true)) {
                                 continue;
                         }
-                        String defaultName = dimension == IslandDimension.NETHER ? "stormbound_nether"
-                                        : "stormbound_end";
+                        String defaultName = dimension == IslandDimension.NETHER ? "stormbound_nether" : "stormbound_end";
                         String worldName = getConfig().getString(path + ".world", defaultName);
                         World world = getServer().getWorld(worldName);
                         if (world == null) {
@@ -272,8 +285,7 @@ public final class StormboundSkyblock extends JavaPlugin {
                                 world = creator.createWorld();
                         }
                         if (world == null) {
-                                getLogger().severe("Failed to create " + dimension.name() + " island world '"
-                                                + worldName + "'.");
+                                getLogger().severe("Failed to create " + dimension.name() + " island world '" + worldName + "'.");
                                 return false;
                         }
                         world.setAutoSave(true);
@@ -419,6 +431,10 @@ public final class StormboundSkyblock extends JavaPlugin {
                 return addonManager;
         }
 
+        public EndWorldControlListener getEndWorldControlListener() {
+                return endWorldControlListener;
+        }
+
         private void registerListeners(
                         IslandCommand islandCommand) {
                 getServer()
@@ -452,5 +468,13 @@ public final class StormboundSkyblock extends JavaPlugin {
                                 .registerEvents(
                                                 islandVisualManager,
                                                 this);
+
+                if (endWorldControlListener != null) {
+                        getServer()
+                                        .getPluginManager()
+                                        .registerEvents(
+                                                        endWorldControlListener,
+                                                        this);
+                }
         }
 }

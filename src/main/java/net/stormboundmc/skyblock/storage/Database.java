@@ -171,6 +171,7 @@ public final class Database {
                         island_id INTEGER NOT NULL,
                         dimension TEXT NOT NULL,
                         generated INTEGER NOT NULL DEFAULT 0,
+                        unlocked INTEGER NOT NULL DEFAULT 0,
                         size INTEGER NOT NULL DEFAULT 50,
                         home_x REAL,
                         home_y REAL,
@@ -179,6 +180,41 @@ public final class Database {
                         home_pitch REAL,
                         PRIMARY KEY (island_id, dimension),
                         FOREIGN KEY (island_id) REFERENCES islands (island_id) ON DELETE CASCADE
+                    );
+                    """);
+
+            addColumnIfMissing(statement, "island_dimensions", "unlocked", "INTEGER NOT NULL DEFAULT 0");
+
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS island_member_dimension_homes (
+                        island_id INTEGER NOT NULL,
+                        player_uuid TEXT NOT NULL,
+                        dimension TEXT NOT NULL,
+                        home_x REAL NOT NULL,
+                        home_y REAL NOT NULL,
+                        home_z REAL NOT NULL,
+                        home_yaw REAL NOT NULL DEFAULT 0,
+                        home_pitch REAL NOT NULL DEFAULT 0,
+
+                        PRIMARY KEY (player_uuid, dimension),
+
+                        FOREIGN KEY (
+                            island_id,
+                            player_uuid
+                        )
+                        REFERENCES island_members (
+                            island_id,
+                            player_uuid
+                        )
+                        ON DELETE CASCADE
+                    );
+                    """);
+
+            statement.executeUpdate("""
+                    CREATE INDEX IF NOT EXISTS idx_island_member_dimension_homes_island
+                    ON island_member_dimension_homes (
+                        island_id,
+                        dimension
                     );
                     """);
 

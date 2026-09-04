@@ -6,6 +6,8 @@ import net.stormboundmc.skyblock.gui.holder.CreateIslandMenuHolder;
 import net.stormboundmc.skyblock.gui.holder.IslandMenuHolder;
 import net.stormboundmc.skyblock.island.Island;
 import net.stormboundmc.skyblock.island.IslandManager;
+import net.stormboundmc.skyblock.island.IslandDimension;
+import net.stormboundmc.skyblock.island.IslandDimensionManager;
 import net.stormboundmc.skyblock.island.IslandRole;
 import net.stormboundmc.skyblock.StormboundSkyblock;
 
@@ -178,6 +180,26 @@ public final class IslandMenu {
                                 island,
                                 role);
 
+                setDimensionButton(
+                                inventory,
+                                "gui.main.buttons.nether",
+                                38,
+                                Material.NETHERRACK,
+                                "<red><bold>Nether Island</bold></red>",
+                                island,
+                                role,
+                                IslandDimension.NETHER);
+
+                setDimensionButton(
+                                inventory,
+                                "gui.main.buttons.end",
+                                42,
+                                Material.END_STONE,
+                                "<light_purple><bold>End Island</bold></light_purple>",
+                                island,
+                                role,
+                                IslandDimension.END);
+
                 if (role == IslandRole.OWNER) {
                         setButton(
                                         inventory,
@@ -318,6 +340,62 @@ public final class IslandMenu {
                 }
 
                 inventory.setItem(slot, createItem(material, name, replacedLore));
+        }
+
+        private void setDimensionButton(
+                        Inventory inventory,
+                        String path,
+                        int fallbackSlot,
+                        Material fallbackMaterial,
+                        String fallbackName,
+                        Island island,
+                        IslandRole role,
+                        IslandDimension dimension) {
+                int slot = getSlot(path, fallbackSlot);
+                Material material = getMaterial(path, fallbackMaterial);
+                String name = plugin.getConfig().getString(path + ".name", fallbackName);
+
+                IslandDimensionManager dimensionManager = plugin.getIslandDimensionManager();
+                boolean unlocked = dimensionManager != null && dimensionManager.isUnlocked(island, dimension);
+                double cost = dimensionManager == null ? 0.0D : dimensionManager.getUnlockCost(dimension);
+                String formattedCost = plugin.getEconomyManager() == null
+                                ? String.format("$%,.2f", cost)
+                                : plugin.getEconomyManager().format(cost);
+
+                String lorePath = path + (unlocked ? ".lore-unlocked" : ".lore-locked");
+                List<String> lore = plugin.getConfig().getStringList(lorePath);
+                if (lore.isEmpty()) {
+                        lore = unlocked
+                                        ? List.of(
+                                                        "<gray>Travel to your island's " + formatDimension(dimension) + ".</gray>",
+                                                        "",
+                                                        "<green>Unlocked</green>",
+                                                        "<gold>Click to travel.</gold>")
+                                        : List.of(
+                                                        "<gray>Your island's " + formatDimension(dimension) + " is locked.</gray>",
+                                                        "<gray>Unlock Cost: <gold>{unlock_cost}</gold></gray>",
+                                                        "",
+                                                        role == IslandRole.MEMBER
+                                                                        ? "<red>An Owner or Co-Owner must unlock it.</red>"
+                                                                        : "<gold>Use /is unlock " + dimension.getConfigKey() + "</gold>");
+                }
+
+                List<String> replacedLore = new ArrayList<>();
+                for (String line : lore) {
+                        replacedLore.add(line
+                                        .replace("{unlock_cost}", formattedCost)
+                                        .replace("{dimension}", formatDimension(dimension)));
+                }
+
+                inventory.setItem(slot, createItem(material, name, replacedLore));
+        }
+
+        private String formatDimension(IslandDimension dimension) {
+                return switch (dimension) {
+                        case OVERWORLD -> "Overworld";
+                        case NETHER -> "Nether";
+                        case END -> "End";
+                };
         }
 
         private void setSimpleButton(

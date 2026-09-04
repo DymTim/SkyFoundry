@@ -2,6 +2,8 @@ package net.stormboundmc.skyblock.command;
 
 import net.stormboundmc.skyblock.StormboundSkyblock;
 import net.stormboundmc.skyblock.island.Island;
+import net.stormboundmc.skyblock.island.IslandDimension;
+import net.stormboundmc.skyblock.island.IslandDimensionManager;
 import net.stormboundmc.skyblock.island.IslandManager;
 import net.stormboundmc.skyblock.island.IslandRole;
 import net.stormboundmc.skyblock.island.IslandSettingsManager;
@@ -47,6 +49,7 @@ public final class IslandCommand
         private final Set<UUID> creatingIslands = ConcurrentHashMap.newKeySet();
 
         private final Set<UUID> deletingIslands = ConcurrentHashMap.newKeySet();
+        private final Set<String> generatingDimensions = ConcurrentHashMap.newKeySet();
 
         public IslandCommand(
                         StormboundSkyblock plugin,
@@ -100,6 +103,18 @@ public final class IslandCommand
                                 handleVisit(
                                                 player,
                                                 args);
+
+                        case "overworld" ->
+                                handleDimensionTeleport(player, IslandDimension.OVERWORLD);
+
+                        case "nether" ->
+                                handleDimensionTeleport(player, IslandDimension.NETHER);
+
+                        case "end" ->
+                                handleDimensionTeleport(player, IslandDimension.END);
+
+                        case "unlock" ->
+                                handleDimensionUnlock(player, args);
 
                         case "sethome" ->
                                 handleSetHome(
@@ -505,8 +520,10 @@ public final class IslandCommand
 
         private void teleportHome(
                         Player player) {
+                IslandDimension dimension = getCurrentHomeDimension(player);
                 Location home = islandManager.getHome(
-                                player.getUniqueId());
+                                player.getUniqueId(),
+                                dimension);
 
                 if (home == null) {
                         sendMessage(
@@ -517,9 +534,24 @@ public final class IslandCommand
                         return;
                 }
 
-                cancelPendingHomeTeleport(
-                                player.getUniqueId(),
-                                false);
+                scheduleHomeTeleport(player, dimension, home);
+        }
+
+        private IslandDimension getCurrentHomeDimension(Player player) {
+                IslandDimensionManager dimensionManager = plugin.getIslandDimensionManager();
+                if (dimensionManager == null) {
+                        return IslandDimension.OVERWORLD;
+                }
+
+                IslandDimension dimension = dimensionManager.getDimension(player.getWorld());
+                return dimension == null ? IslandDimension.OVERWORLD : dimension;
+        }
+
+        private void scheduleHomeTeleport(
+                        Player player,
+                        IslandDimension dimension,
+                        Location initialHome) {
+                cancelPendingHomeTeleport(player.getUniqueId(), false);
 
                 int delaySeconds = Math.max(
                                 0,
@@ -533,41 +565,174 @@ public final class IslandCommand
                                 "<gray>Teleporting to your island...</gray>");
 
                 if (delaySeconds <= 0) {
-                        player.teleport(
-                                        home);
+                        player.teleport(initialHome);
                         return;
                 }
 
                 Location origin = player.getLocation().clone();
 
-                BukkitTask task = Bukkit.getScheduler()
-                                .runTaskLater(
-                                                plugin,
-                                                () -> {
-                                                        pendingHomeTeleports.remove(
-                                                                        player.getUniqueId());
+                BukkitTask task = Bukkit.getScheduler().runTaskLater(
+                                plugin,
+                                () -> {
+                                        pendingHomeTeleports.remove(player.getUniqueId());
 
-                                                        if (!player.isOnline()) {
-                                                                return;
-                                                        }
+                                        if (!player.isOnline()) {
+                                                return;
+                                        }
 
-                                                        Location currentHome = islandManager.getHome(
-                                                                        player.getUniqueId());
+                                        Location currentHome = islandManager.getHome(
+                                                        player.getUniqueId(),
+                                                        dimension);
 
-                                                        if (currentHome == null) {
-                                                                return;
-                                                        }
-
-                                                        player.teleport(
-                                                                        currentHome);
-                                                },
-                                                delaySeconds * 20L);
+                                        if (currentHome != null) {
+                                                player.teleport(currentHome);
+                                        }
+                                },
+                                delaySeconds * 20L);
 
                 pendingHomeTeleports.put(
                                 player.getUniqueId(),
-                                new PendingHomeTeleport(
-                                                origin,
-                                                task));
+                                new PendingHomeTeleport(origin, task));
+        }
+
+        private void handleDimensionTeleport(
+                        Player player,
+                        IslandDimension dimension) {
+                Island island = islandManager.getIsland(player.getUniqueId()).orElse(null);
+                if (island == null) {
+                        sendMessage(
+                                        player,
+                                        "messages.island-not-found",
+                                        "<red>You are not part of an island.</red>");
+                        return;
+                }
+
+                String configPath = "dimensions." + dimension.getConfigKey();
+                if (!plugin.getConfig().getBoolean(configPath + ".enabled", true)) {
+                        sendMessage(
+                                        player,
+                                        "messages.dimension-disabled",
+                                        "<red>That island dimension is currently disabled.</red>");
+                        return;
+                }
+
+                IslandDimensionManager dimensionManager = plugin.getIslandDimensionManager();
+                if (dimensionManager == null || dimensionManager.getWorld(dimension) == null) {
+                        sendMessage(
+                                        player,
+                                        "messages.dimension-unavailable",
+                                        "<red>That island dimension is unavailable.</red>");
+                        return;
+                }
+
+                if (dimension == IslandDimension.OVERWORLD) {
+                        Location home = islandManager.getHome(player.getUniqueId(), IslandDimension.OVERWORLD);
+                        if (home == null) {
+                                home = dimensionManager.defaultHome(island, IslandDimension.OVERWORLD);
+                        }
+                        scheduleHomeTeleport(player, IslandDimension.OVERWORLD, home);
+                        return;
+                }
+
+                if (!dimensionManager.isUnlocked(island, dimension)) {
+                        double cost = dimensionManager.getUnlockCost(dimension);
+                        String formattedCost = plugin.getEconomyManager() == null
+                                        ? String.format("$%,.2f", cost)
+                                        : plugin.getEconomyManager().format(cost);
+                        String message = plugin.getConfig().getString(
+                                        "messages.dimension-locked",
+                                        "<red>The {dimension} island is locked.</red> <gray>Unlock cost: <gold>{cost}</gold>. Use <gold>/is unlock {dimension_command}</gold>.</gray>");
+                        player.sendRichMessage(getPrefix()
+                                        + message.replace("{dimension}", formatDimension(dimension))
+                                                        .replace("{dimension_command}", dimension.getConfigKey())
+                                                        .replace("{cost}", formattedCost));
+                        return;
+                }
+
+                if (dimensionManager.isGenerated(island, dimension)) {
+                        Location home = islandManager.getHome(player.getUniqueId(), dimension);
+                        if (home == null) {
+                                home = dimensionManager.defaultHome(island, dimension);
+                        }
+                        scheduleHomeTeleport(player, dimension, home);
+                        return;
+                }
+
+                String generationKey = island.getIslandId() + ":" + dimension.name();
+                if (!generatingDimensions.add(generationKey)) {
+                        sendMessage(
+                                        player,
+                                        "messages.dimension-generating",
+                                        "<gray>Your island dimension is already being generated...</gray>");
+                        return;
+                }
+
+                sendMessage(
+                                player,
+                                "messages.dimension-generating",
+                                "<gray>Generating your island dimension...</gray>");
+
+                if (dimension == IslandDimension.END
+                                && plugin.getEndWorldControlListener() != null) {
+                        plugin.getEndWorldControlListener().prepareForIslandPaste();
+                }
+
+                plugin.getSchematicManager()
+                                .loadDimensionSchematic(dimension)
+                                .thenCompose(schematic -> plugin.getSchematicManager().paste(island, dimension, schematic))
+                                .thenRun(() -> Bukkit.getScheduler().runTask(
+                                                plugin,
+                                                () -> {
+                                                        try {
+                                                                dimensionManager.setGenerated(island, dimension, true);
+                                                                Location home = islandManager.getHome(
+                                                                                player.getUniqueId(),
+                                                                                dimension);
+                                                                if (home == null) {
+                                                                        home = dimensionManager.defaultHome(island, dimension);
+                                                                }
+
+                                                                if (player.isOnline()) {
+                                                                        player.teleport(home);
+                                                                        sendMessage(
+                                                                                        player,
+                                                                                        "messages.dimension-created",
+                                                                                        "<green>Your island dimension is ready.</green>");
+                                                                }
+                                                        } catch (SQLException exception) {
+                                                                plugin.getLogger().severe(
+                                                                                "Failed to mark " + dimension.name()
+                                                                                                + " island generated for island "
+                                                                                                + island.getIslandId() + ": "
+                                                                                                + exception.getMessage());
+                                                                if (player.isOnline()) {
+                                                                        sendMessage(
+                                                                                        player,
+                                                                                        "messages.dimension-create-failed",
+                                                                                        "<red>Something went wrong while creating that island dimension.</red>");
+                                                                }
+                                                        } finally {
+                                                                generatingDimensions.remove(generationKey);
+                                                        }
+                                                }))
+                                .exceptionally(exception -> {
+                                        generatingDimensions.remove(generationKey);
+                                        plugin.getLogger().severe(
+                                                        "Failed to generate " + dimension.name()
+                                                                        + " island for island " + island.getIslandId()
+                                                                        + ": " + getRootMessage(exception));
+                                        Bukkit.getScheduler().runTask(
+                                                        plugin,
+                                                        () -> {
+                                                                if (player.isOnline()) {
+                                                                        sendMessage(
+                                                                                        player,
+                                                                                        "messages.dimension-create-failed",
+                                                                                        "<red>Something went wrong while creating that island dimension.</red>");
+                                                                }
+                                                        });
+                                        return null;
+                                });
         }
 
         @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
@@ -653,6 +818,138 @@ public final class IslandCommand
                         BukkitTask task) {
         }
 
+        private void handleDimensionUnlock(
+                        Player player,
+                        String[] args) {
+                if (args.length < 2) {
+                        player.sendRichMessage(getPrefix()
+                                        + "<gray>Usage: <gold>/island unlock <nether|end></gold></gray>");
+                        return;
+                }
+
+                IslandDimension dimension = switch (args[1].toLowerCase()) {
+                        case "nether" -> IslandDimension.NETHER;
+                        case "end" -> IslandDimension.END;
+                        default -> null;
+                };
+
+                if (dimension == null) {
+                        player.sendRichMessage(getPrefix()
+                                        + "<gray>Usage: <gold>/island unlock <nether|end></gold></gray>");
+                        return;
+                }
+
+                Island island = islandManager.getIsland(player.getUniqueId()).orElse(null);
+                if (island == null) {
+                        sendMessage(player, "messages.island-not-found", "<red>You are not part of an island.</red>");
+                        return;
+                }
+
+                IslandRole role = islandManager.getRole(player.getUniqueId()).orElse(IslandRole.MEMBER);
+                if (role != IslandRole.OWNER && role != IslandRole.CO_OWNER) {
+                        sendMessage(
+                                        player,
+                                        "messages.dimension-unlock-no-permission",
+                                        "<red>Only the island Owner or a Co-Owner can unlock dimensions.</red>");
+                        return;
+                }
+
+                String configPath = "dimensions." + dimension.getConfigKey();
+                if (!plugin.getConfig().getBoolean(configPath + ".enabled", true)) {
+                        sendMessage(player, "messages.dimension-disabled", "<red>That island dimension is currently disabled.</red>");
+                        return;
+                }
+
+                IslandDimensionManager dimensionManager = plugin.getIslandDimensionManager();
+                if (dimensionManager == null || dimensionManager.getWorld(dimension) == null) {
+                        sendMessage(player, "messages.dimension-unavailable", "<red>That island dimension is unavailable.</red>");
+                        return;
+                }
+
+                if (!dimensionManager.requiresUnlock(dimension)) {
+                        try {
+                                dimensionManager.setUnlocked(island, dimension, true);
+                        } catch (SQLException exception) {
+                                plugin.getLogger().severe("Failed to unlock " + dimension.name() + " for island "
+                                                + island.getIslandId() + ": " + exception.getMessage());
+                                sendMessage(player, "messages.dimension-unlock-failed", "<red>Could not unlock that island dimension.</red>");
+                                return;
+                        }
+                        sendDimensionUnlocked(player, dimension, 0.0D);
+                        return;
+                }
+
+                if (dimensionManager.isUnlocked(island, dimension)) {
+                        sendMessage(player, "messages.dimension-already-unlocked", "<yellow>That island dimension is already unlocked.</yellow>");
+                        return;
+                }
+
+                if (dimensionManager.requiresNether(dimension)
+                                && !dimensionManager.isUnlocked(island, IslandDimension.NETHER)) {
+                        sendMessage(
+                                        player,
+                                        "messages.dimension-requires-nether",
+                                        "<red>You must unlock the Nether island before unlocking the End.</red>");
+                        return;
+                }
+
+                double cost = dimensionManager.getUnlockCost(dimension);
+                var economy = plugin.getEconomyManager();
+
+                if (cost > 0.0D && (economy == null || !economy.isAvailable())) {
+                        sendMessage(
+                                        player,
+                                        "messages.dimension-economy-unavailable",
+                                        "<red>The economy is currently unavailable, so this dimension cannot be unlocked.</red>");
+                        return;
+                }
+
+                if (cost > 0.0D && !economy.has(player, cost)) {
+                        String message = plugin.getConfig().getString(
+                                        "messages.dimension-insufficient-funds",
+                                        "<red>You need <gold>{cost}</gold> to unlock this dimension.</red>");
+                        player.sendRichMessage(getPrefix() + message.replace("{cost}", economy.format(cost)));
+                        return;
+                }
+
+                if (cost > 0.0D && !economy.withdraw(player, cost)) {
+                        sendMessage(player, "messages.dimension-payment-failed", "<red>Could not process the dimension unlock payment.</red>");
+                        return;
+                }
+
+                try {
+                        dimensionManager.setUnlocked(island, dimension, true);
+                } catch (SQLException exception) {
+                        if (cost > 0.0D) economy.refund(player, cost);
+                        plugin.getLogger().severe("Failed to save " + dimension.name() + " unlock for island "
+                                        + island.getIslandId() + ": " + exception.getMessage());
+                        sendMessage(player, "messages.dimension-unlock-failed", "<red>Could not unlock that island dimension.</red>");
+                        return;
+                }
+
+                sendDimensionUnlocked(player, dimension, cost);
+        }
+
+        private void sendDimensionUnlocked(Player player, IslandDimension dimension, double cost) {
+                String formattedCost = cost <= 0.0D
+                                ? "$0"
+                                : plugin.getEconomyManager().format(cost);
+                String message = plugin.getConfig().getString(
+                                "messages.dimension-unlocked",
+                                "<green>{dimension} Island unlocked for <gold>{cost}</gold>.</green>");
+                player.sendRichMessage(getPrefix()
+                                + message.replace("{dimension}", formatDimension(dimension))
+                                                .replace("{cost}", formattedCost));
+        }
+
+        private String formatDimension(IslandDimension dimension) {
+                return switch (dimension) {
+                        case OVERWORLD -> "Overworld";
+                        case NETHER -> "Nether";
+                        case END -> "End";
+                };
+        }
+
         private void handleSetHome(
                         Player player) {
                 UUID uuid = player.getUniqueId();
@@ -671,9 +968,7 @@ public final class IslandCommand
                         return;
                 }
 
-                if (!island.contains(
-                                player.getLocation(),
-                                islandManager.getIslandSize(island))) {
+                if (islandManager.getIslandAt(player.getLocation()).orElse(null) != island) {
                         sendMessage(
                                         player,
                                         "messages.sethome-outside-island",
@@ -1245,8 +1540,12 @@ public final class IslandCommand
                                                 + "<gold>/island menu</gold>, "
                                                 + "<gold>/island create</gold>, "
                                                 + "<gold>/island home</gold>, "
+                                                + "<gold>/island overworld</gold>, "
                                                 + "<gold>/island info</gold>, "
                                                 + "<gold>/island visit</gold>, "
+                                                + "<gold>/island nether</gold>, "
+                                                + "<gold>/island end</gold>, "
+                                                + "<gold>/island unlock</gold>, "
                                                 + "<gold>/island sethome</gold>, "
                                                 + "<gold>/island invite</gold>, "
                                                 + "<gold>/island accept</gold>, "

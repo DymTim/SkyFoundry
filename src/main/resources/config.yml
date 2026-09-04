@@ -31,12 +31,27 @@ dimensions:
     world: "stormbound_nether"
     creation-y: 100
     schematic: "schematics/starter_nether.schem"
+    unlock:
+      required: true
+      cost: 100000
 
   end:
     enabled: true
     world: "stormbound_end"
     creation-y: 100
     schematic: "schematics/starter_end.schem"
+
+    # Stormbound uses its own End progression. Disable the vanilla dragon arena,
+    # central exit portal, and outer-island gateway system in this world.
+    vanilla-end:
+      disable-dragon: true
+      disable-exit-portal: true
+      disable-gateways: true
+
+    unlock:
+      required: true
+      cost: 500000
+      requires-nether: true
 
 # ------------------------------------------------------------
 # Islands
@@ -291,6 +306,37 @@ gui:
           - "<gray>Configure access and cosmetics.</gray>"
           - ""
           - "<gold>Click to open settings.</gold>"
+
+      nether:
+        slot: 38
+        material: "NETHERRACK"
+        name: "<red><bold>Nether Island</bold></red>"
+        lore-unlocked:
+          - "<gray>Travel to your island's Nether.</gray>"
+          - ""
+          - "<green>Unlocked</green>"
+          - "<gold>Click to travel.</gold>"
+        lore-locked:
+          - "<gray>Your Nether island is locked.</gray>"
+          - "<gray>Unlock Cost: <gold>{unlock_cost}</gold></gray>"
+          - ""
+          - "<gold>Use /is unlock nether</gold>"
+
+      end:
+        slot: 42
+        material: "END_STONE"
+        name: "<light_purple><bold>End Island</bold></light_purple>"
+        lore-unlocked:
+          - "<gray>Travel to your island's End.</gray>"
+          - ""
+          - "<green>Unlocked</green>"
+          - "<gold>Click to travel.</gold>"
+        lore-locked:
+          - "<gray>Your End island is locked.</gray>"
+          - "<gray>Unlock Cost: <gold>{unlock_cost}</gold></gray>"
+          - "<gray>Requires: <red>Nether Island unlocked</red></gray>"
+          - ""
+          - "<gold>Use /is unlock end</gold>"
 
       danger-owner:
         slot: 36
@@ -722,6 +768,21 @@ messages:
 
   teleport-cancelled: "<red>Teleport cancelled because you moved.</red>"
 
+  dimension-disabled: "<red>That island dimension is currently disabled.</red>"
+  dimension-unavailable: "<red>That island dimension is unavailable.</red>"
+  dimension-locked: "<red>The {dimension} island is locked.</red> <gray>Unlock cost: <gold>{cost}</gold>. Use <gold>/is unlock {dimension_command}</gold>.</gray>"
+  dimension-unlock-no-permission: "<red>Only the island Owner or a Co-Owner can unlock dimensions.</red>"
+  dimension-already-unlocked: "<yellow>That island dimension is already unlocked.</yellow>"
+  dimension-requires-nether: "<red>You must unlock the Nether island before unlocking the End.</red>"
+  dimension-economy-unavailable: "<red>The economy is currently unavailable, so this dimension cannot be unlocked.</red>"
+  dimension-insufficient-funds: "<red>You need <gold>{cost}</gold> to unlock this dimension.</red>"
+  dimension-payment-failed: "<red>Could not process the dimension unlock payment.</red>"
+  dimension-unlock-failed: "<red>Could not unlock that island dimension.</red>"
+  dimension-unlocked: "<green>{dimension} Island unlocked for <gold>{cost}</gold>.</green>"
+  dimension-generating: "<gray>Generating your island dimension...</gray>"
+  dimension-created: "<green>Your island dimension is ready.</green>"
+  dimension-create-failed: "<red>Something went wrong while creating that island dimension.</red>"
+
   island-create-failed: "<red>Something went wrong while creating your island.</red>"
 
   island-delete-confirm: "<red>Run <gold>/island delete confirm</gold> within <yellow>{seconds}</yellow> seconds to permanently delete your island.</red>"
@@ -848,4 +909,3 @@ island_upgrades:
       - { value: 8, cost: 90000 }
       - { value: 9, cost: 175000 }
       - { value: 10, cost: 350000 }
-

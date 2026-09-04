@@ -434,77 +434,88 @@ public final class IslandManager {
                         UUID playerUuid,
                         Location location) throws SQLException {
 
-                Island island = islandsByPlayer.get(
-                                playerUuid);
+                Island island = islandsByPlayer.get(playerUuid);
+                IslandMember member = members.get(playerUuid);
 
-                IslandMember member = members.get(
-                                playerUuid);
-
-                if (island == null
-                                || member == null) {
+                if (island == null || member == null || location == null || location.getWorld() == null) {
                         return false;
                 }
 
-                int size = getIslandSize(island);
+                IslandDimension dimension = dimensionManager == null
+                                ? (location.getWorld().equals(islandWorld) ? IslandDimension.OVERWORLD : null)
+                                : dimensionManager.getDimension(location.getWorld());
 
-                if (!island.contains(
-                                location,
-                                size)) {
+                if (dimension == null) {
                         return false;
+                }
+
+                int size = getIslandSize(island, dimension);
+                if (!contains(island, location, size)) {
+                        return false;
+                }
+
+                if (dimension == IslandDimension.OVERWORLD) {
+                        String sql = """
+                                        UPDATE island_members
+                                        SET
+                                            home_x = ?,
+                                            home_y = ?,
+                                            home_z = ?,
+                                            home_yaw = ?,
+                                            home_pitch = ?
+                                        WHERE player_uuid = ?;
+                                        """;
+
+                        try (PreparedStatement statement = database.getConnection().prepareStatement(sql)) {
+                                statement.setDouble(1, location.getX());
+                                statement.setDouble(2, location.getY());
+                                statement.setDouble(3, location.getZ());
+                                statement.setFloat(4, location.getYaw());
+                                statement.setFloat(5, location.getPitch());
+                                statement.setString(6, playerUuid.toString());
+                                statement.executeUpdate();
+                        }
+
+                        member.setHome(location);
+
+                        if (member.getRole() == IslandRole.OWNER) {
+                                island.setHome(location);
+                                updateLegacyOwnerHome(island);
+                                if (dimensionManager != null) {
+                                        dimensionManager.setHome(island, IslandDimension.OVERWORLD, location);
+                                }
+                        }
+
+                        return true;
                 }
 
                 String sql = """
-                                UPDATE island_members
-                                SET
-                                    home_x = ?,
-                                    home_y = ?,
-                                    home_z = ?,
-                                    home_yaw = ?,
-                                    home_pitch = ?
-                                WHERE player_uuid = ?;
+                                INSERT INTO island_member_dimension_homes (
+                                    island_id, player_uuid, dimension, home_x, home_y, home_z, home_yaw, home_pitch
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                ON CONFLICT(player_uuid, dimension) DO UPDATE SET
+                                    island_id = excluded.island_id,
+                                    home_x = excluded.home_x,
+                                    home_y = excluded.home_y,
+                                    home_z = excluded.home_z,
+                                    home_yaw = excluded.home_yaw,
+                                    home_pitch = excluded.home_pitch;
                                 """;
 
-                try (
-                                PreparedStatement statement = database
-                                                .getConnection()
-                                                .prepareStatement(sql)) {
-                        statement.setDouble(
-                                        1,
-                                        location.getX());
-
-                        statement.setDouble(
-                                        2,
-                                        location.getY());
-
-                        statement.setDouble(
-                                        3,
-                                        location.getZ());
-
-                        statement.setFloat(
-                                        4,
-                                        location.getYaw());
-
-                        statement.setFloat(
-                                        5,
-                                        location.getPitch());
-
-                        statement.setString(
-                                        6,
-                                        playerUuid.toString());
-
+                try (PreparedStatement statement = database.getConnection().prepareStatement(sql)) {
+                        statement.setLong(1, island.getIslandId());
+                        statement.setString(2, playerUuid.toString());
+                        statement.setString(3, dimension.name());
+                        statement.setDouble(4, location.getX());
+                        statement.setDouble(5, location.getY());
+                        statement.setDouble(6, location.getZ());
+                        statement.setFloat(7, location.getYaw());
+                        statement.setFloat(8, location.getPitch());
                         statement.executeUpdate();
                 }
 
-                member.setHome(
-                                location);
-
-                if (member.getRole() == IslandRole.OWNER) {
-
-                        island.setHome(
-                                        location);
-
-                        updateLegacyOwnerHome(
-                                        island);
+                if (member.getRole() == IslandRole.OWNER && dimensionManager != null) {
+                        dimensionManager.setHome(island, dimension, location);
                 }
 
                 return true;
@@ -812,7 +823,7 @@ public final class IslandManager {
                 teleportPlayersOffIsland(
                                 island);
 
-                return clearIsland(
+                return clearGeneratedDimensions(
                                 island).thenApply(unused -> {
                                         try {
                                                 deleteIslandRecord(
@@ -899,14 +910,60 @@ public final class IslandManager {
 
         public Location getHome(
                         UUID playerUuid) {
-                IslandMember member = members.get(
-                                playerUuid);
+                return getHome(playerUuid, IslandDimension.OVERWORLD);
+        }
 
-                if (member == null) {
+        public Location getHome(UUID playerUuid, IslandDimension dimension) {
+                Island island = islandsByPlayer.get(playerUuid);
+                IslandMember member = members.get(playerUuid);
+
+                if (island == null || member == null || dimension == null) {
                         return null;
                 }
 
-                return member.getHome();
+                if (dimension == IslandDimension.OVERWORLD) {
+                        return member.getHome();
+                }
+
+                World world = dimensionManager == null ? null : dimensionManager.getWorld(dimension);
+                if (world == null) {
+                        return null;
+                }
+
+                String sql = """
+                                SELECT home_x, home_y, home_z, home_yaw, home_pitch
+                                FROM island_member_dimension_homes
+                                WHERE player_uuid = ? AND dimension = ?;
+                                """;
+
+                try (PreparedStatement statement = database.getConnection().prepareStatement(sql)) {
+                        statement.setString(1, playerUuid.toString());
+                        statement.setString(2, dimension.name());
+
+                        try (ResultSet resultSet = statement.executeQuery()) {
+                                if (resultSet.next()) {
+                                        return new Location(
+                                                        world,
+                                                        resultSet.getDouble("home_x"),
+                                                        resultSet.getDouble("home_y"),
+                                                        resultSet.getDouble("home_z"),
+                                                        resultSet.getFloat("home_yaw"),
+                                                        resultSet.getFloat("home_pitch"));
+                                }
+                        }
+                } catch (SQLException exception) {
+                        plugin.getLogger().warning(
+                                        "Failed to load " + dimension.name() + " home for " + playerUuid + ": " + exception.getMessage());
+                }
+
+                if (dimensionManager != null) {
+                        Location dimensionHome = dimensionManager.getHome(island, dimension);
+                        if (dimensionHome != null) {
+                                return dimensionHome;
+                        }
+                }
+
+                return null;
         }
 
         public boolean hasIsland(
@@ -1507,11 +1564,38 @@ public final class IslandManager {
                 island.setMemberLimit(value);
         }
 
-        private CompletableFuture<Void> clearIsland(
+        private CompletableFuture<Void> clearGeneratedDimensions(
                         Island island) {
+                CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
+
+                for (IslandDimension dimension : IslandDimension.values()) {
+                        if (dimensionManager != null
+                                        && dimension != IslandDimension.OVERWORLD
+                                        && !dimensionManager.isGenerated(island, dimension)) {
+                                continue;
+                        }
+
+                        future = future.thenCompose(unused -> clearIslandDimension(island, dimension));
+                }
+
+                return future;
+        }
+
+        private CompletableFuture<Void> clearIslandDimension(
+                        Island island,
+                        IslandDimension dimension) {
                 CompletableFuture<Void> future = new CompletableFuture<>();
 
-                int islandSize = getIslandSize(island);
+                World world = dimensionManager == null
+                                ? (dimension == IslandDimension.OVERWORLD ? islandWorld : null)
+                                : dimensionManager.getWorld(dimension);
+
+                if (world == null) {
+                        future.complete(null);
+                        return future;
+                }
+
+                int islandSize = getIslandSize(island, dimension);
 
                 int positionsPerTick = Math.max(
                                 1,
@@ -1519,85 +1603,58 @@ public final class IslandManager {
                                                 "deletion.positions-per-tick",
                                                 25000));
 
-                int minX = island.getCenterX()
-                                - (islandSize / 2);
-
-                int minZ = island.getCenterZ()
-                                - (islandSize / 2);
-
+                int minX = island.getCenterX() - (islandSize / 2);
+                int minZ = island.getCenterZ() - (islandSize / 2);
                 int maxX = minX + islandSize - 1;
-
                 int maxZ = minZ + islandSize - 1;
+                int minY = world.getMinHeight();
+                int maxY = world.getMaxHeight() - 1;
 
-                int minY = islandWorld.getMinHeight();
-
-                int maxY = islandWorld.getMaxHeight() - 1;
-
-                removeIslandEntities(
-                                minX,
-                                maxX,
-                                minY,
-                                maxY,
-                                minZ,
-                                maxZ);
+                removeIslandEntities(world, minX, maxX, minY, maxY, minZ, maxZ);
 
                 final int[] x = { minX };
                 final int[] y = { minY };
                 final int[] z = { minZ };
-
                 final BukkitTask[] task = new BukkitTask[1];
 
-                task[0] = plugin.getServer()
-                                .getScheduler()
-                                .runTaskTimer(
-                                                plugin,
-                                                () -> {
-                                                        try {
-                                                                int processed = 0;
+                task[0] = plugin.getServer().getScheduler().runTaskTimer(
+                                plugin,
+                                () -> {
+                                        try {
+                                                int processed = 0;
 
-                                                                while (processed < positionsPerTick) {
-
-                                                                        if (x[0] > maxX) {
-                                                                                task[0].cancel();
-                                                                                future.complete(null);
-                                                                                return;
-                                                                        }
-
-                                                                        var block = islandWorld.getBlockAt(
-                                                                                        x[0],
-                                                                                        y[0],
-                                                                                        z[0]);
-
-                                                                        if (block.getType() != Material.AIR) {
-
-                                                                                block.setType(
-                                                                                                Material.AIR,
-                                                                                                false);
-                                                                        }
-
-                                                                        processed++;
-                                                                        y[0]++;
-
-                                                                        if (y[0] > maxY) {
-                                                                                y[0] = minY;
-                                                                                z[0]++;
-
-                                                                                if (z[0] > maxZ) {
-                                                                                        z[0] = minZ;
-                                                                                        x[0]++;
-                                                                                }
-                                                                        }
-                                                                }
-
-                                                        } catch (Exception exception) {
+                                                while (processed < positionsPerTick) {
+                                                        if (x[0] > maxX) {
                                                                 task[0].cancel();
-
-                                                                future.completeExceptionally(
-                                                                                exception);
+                                                                future.complete(null);
+                                                                return;
                                                         }
-                                                },
-                                                1L,
-                                                1L);
+
+                                                        var block = world.getBlockAt(x[0], y[0], z[0]);
+                                                        if (block.getType() != Material.AIR) {
+                                                                block.setType(Material.AIR, false);
+                                                        }
+
+                                                        processed++;
+                                                        y[0]++;
+
+                                                        if (y[0] > maxY) {
+                                                                y[0] = minY;
+                                                                z[0]++;
+
+                                                                if (z[0] > maxZ) {
+                                                                        z[0] = minZ;
+                                                                        x[0]++;
+                                                                }
+                                                        }
+                                                }
+                                        } catch (Exception exception) {
+                                                task[0].cancel();
+                                                future.completeExceptionally(exception);
+                                        }
+                                },
+                                1L,
+                                1L);
 
                 return future;
         }
@@ -1606,15 +1663,20 @@ public final class IslandManager {
                         Island island) {
                 Location destination = getSafeTeleportLocation();
 
-                int islandSize = getIslandSize(island);
+                for (IslandDimension dimension : IslandDimension.values()) {
+                        World world = dimensionManager == null
+                                        ? (dimension == IslandDimension.OVERWORLD ? islandWorld : null)
+                                        : dimensionManager.getWorld(dimension);
 
-                for (Player player : islandWorld.getPlayers()) {
+                        if (world == null) {
+                                continue;
+                        }
 
-                        if (island.contains(
-                                        player.getLocation(),
-                                        islandSize)) {
-                                player.teleport(
-                                                destination);
+                        int islandSize = getIslandSize(island, dimension);
+                        for (Player player : world.getPlayers()) {
+                                if (contains(island, player.getLocation(), islandSize)) {
+                                        player.teleport(destination);
+                                }
                         }
                 }
         }
@@ -1665,13 +1727,14 @@ public final class IslandManager {
         }
 
         private void removeIslandEntities(
+                        World world,
                         int minX,
                         int maxX,
                         int minY,
                         int maxY,
                         int minZ,
                         int maxZ) {
-                for (Entity entity : islandWorld.getEntities()) {
+                for (Entity entity : world.getEntities()) {
 
                         if (entity instanceof Player) {
                                 continue;
