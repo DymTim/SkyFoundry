@@ -184,7 +184,7 @@ public final class IslandCommand
 
                 int memberLimit = islandManager.getMemberLimit(island);
 
-                int islandSize = islandManager.getIslandSize(island);
+                int islandSize = islandManager.getIslandSize(island, player.getWorld());
 
                 String created = DateTimeFormatter
                                 .ofPattern(

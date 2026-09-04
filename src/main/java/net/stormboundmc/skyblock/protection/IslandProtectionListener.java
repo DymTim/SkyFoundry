@@ -6,7 +6,6 @@ import net.stormboundmc.skyblock.island.IslandManager;
 import net.stormboundmc.skyblock.island.IslandRole;
 import net.stormboundmc.skyblock.island.IslandSettingsManager;
 import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -39,7 +38,6 @@ public final class IslandProtectionListener
     private final StormboundSkyblock plugin;
     private final IslandManager islandManager;
     private final IslandSettingsManager settingsManager;
-    private final World islandWorld;
 
     public IslandProtectionListener(
             StormboundSkyblock plugin,
@@ -48,7 +46,6 @@ public final class IslandProtectionListener
         this.plugin = plugin;
         this.islandManager = islandManager;
         this.settingsManager = settingsManager;
-        this.islandWorld = plugin.getIslandWorld();
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -401,8 +398,9 @@ public final class IslandProtectionListener
             Location destination) {
         if (source.getWorld() == null
                 || destination.getWorld() == null
-                || !source.getWorld().equals(islandWorld)
-                || !destination.getWorld().equals(islandWorld)) {
+                || islandManager.getDimensionManager() == null
+                || !islandManager.getDimensionManager().isIslandWorld(source.getWorld())
+                || !islandManager.getDimensionManager().isIslandWorld(destination.getWorld())) {
             return true;
         }
 
@@ -429,7 +427,8 @@ public final class IslandProtectionListener
             Player player,
             Location location) {
         if (location.getWorld() == null
-                || !location.getWorld().equals(islandWorld)) {
+                || islandManager.getDimensionManager() == null
+                || !islandManager.getDimensionManager().isIslandWorld(location.getWorld())) {
             return true;
         }
 
@@ -467,7 +466,8 @@ public final class IslandProtectionListener
             Player player,
             Location location) {
         if (location.getWorld() == null
-                || !location.getWorld().equals(islandWorld)) {
+                || islandManager.getDimensionManager() == null
+                || !islandManager.getDimensionManager().isIslandWorld(location.getWorld())) {
             return true;
         }
 

@@ -1,6 +1,7 @@
 package net.stormboundmc.skyblock.api.island;
 
 import java.util.UUID;
+import java.util.Map;
 
 public record IslandView(
                 long id,
@@ -11,5 +12,6 @@ public record IslandView(
                 int size,
                 int memberLimit,
                 int memberCount,
-                long createdAt) {
+                long createdAt,
+                Map<String, Integer> dimensionSizes) {
 }

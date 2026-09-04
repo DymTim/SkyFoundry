@@ -167,6 +167,22 @@ public final class Database {
                     """);
 
             statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS island_dimensions (
+                        island_id INTEGER NOT NULL,
+                        dimension TEXT NOT NULL,
+                        generated INTEGER NOT NULL DEFAULT 0,
+                        size INTEGER NOT NULL DEFAULT 50,
+                        home_x REAL,
+                        home_y REAL,
+                        home_z REAL,
+                        home_yaw REAL,
+                        home_pitch REAL,
+                        PRIMARY KEY (island_id, dimension),
+                        FOREIGN KEY (island_id) REFERENCES islands (island_id) ON DELETE CASCADE
+                    );
+                    """);
+
+            statement.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS island_settings (
                         island_id INTEGER PRIMARY KEY,
                         member_building INTEGER NOT NULL DEFAULT 1,

@@ -50,12 +50,16 @@ public final class IslandUpgradeManager {
             return Result.failure(Failure.NO_PERMISSION);
         }
 
-        IslandUpgradeTier tier = islandManager.getNextSizeTier(island);
-        if (tier == null) {
-            return Result.failure(Failure.MAX_TIER);
-        }
+        IslandDimension dimension = islandManager.getDimensionManager() == null
+                ? IslandDimension.OVERWORLD
+                : islandManager.getDimensionManager().getDimension(player.getWorld());
+        if (dimension == null) dimension = IslandDimension.OVERWORLD;
 
-        return purchase(player, tier, () -> islandManager.upgradeSizeTo(player.getUniqueId(), tier.value()));
+        IslandUpgradeTier tier = islandManager.getNextSizeTier(island, dimension);
+        if (tier == null) return Result.failure(Failure.MAX_TIER);
+
+        IslandDimension upgradeDimension = dimension;
+        return purchase(player, tier, () -> islandManager.upgradeSizeTo(player.getUniqueId(), upgradeDimension, tier.value()));
     }
 
     public Result purchaseMemberLimit(Player player) throws SQLException {

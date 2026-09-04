@@ -160,7 +160,7 @@ public final class IslandVisualManager implements Listener {
 
         WorldBorder border = Bukkit.createWorldBorder();
         border.setCenter(island.getCenterX(), island.getCenterZ());
-        border.setSize(islandManager.getIslandSize(island));
+        border.setSize(islandManager.getIslandSize(island, player.getWorld()));
         border.setWarningDistance(0);
         border.setDamageAmount(0.0);
         player.setWorldBorder(border);

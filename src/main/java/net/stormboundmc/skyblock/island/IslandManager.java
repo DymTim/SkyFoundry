@@ -31,6 +31,7 @@ public final class IslandManager {
         private final Database database;
         private final World islandWorld;
         private final IslandPositioner positioner;
+        private IslandDimensionManager dimensionManager;
         private final int islandSpacing;
 
         private final Map<Long, Island> islandsById = new HashMap<>();
@@ -58,6 +59,14 @@ public final class IslandManager {
 
                 this.positioner = new IslandPositioner(
                                 spacing);
+        }
+
+        public void setDimensionManager(IslandDimensionManager dimensionManager) {
+                this.dimensionManager = dimensionManager;
+        }
+
+        public IslandDimensionManager getDimensionManager() {
+                return dimensionManager;
         }
 
         public void loadIslands()
@@ -413,6 +422,10 @@ public final class IslandManager {
                 members.put(
                                 ownerUuid,
                                 owner);
+
+                if (dimensionManager != null) {
+                        dimensionManager.ensureRecords(island);
+                }
 
                 return island;
         }
@@ -914,10 +927,13 @@ public final class IslandManager {
 
         public Optional<Island> getIslandAt(
                         Location location) {
-                if (location.getWorld() == null
-                                || !location.getWorld()
-                                                .equals(islandWorld)) {
-
+                if (location.getWorld() == null) {
+                        return Optional.empty();
+                }
+                IslandDimension dimension = dimensionManager == null
+                                ? (location.getWorld().equals(islandWorld) ? IslandDimension.OVERWORLD : null)
+                                : dimensionManager.getDimension(location.getWorld());
+                if (dimension == null) {
                         return Optional.empty();
                 }
 
@@ -948,16 +964,20 @@ public final class IslandManager {
                                                 (int) centerX,
                                                 (int) centerZ));
 
-                if (island == null
-                                || !island.contains(
-                                                location,
-                                                getIslandSize(island))) {
-
+                if (island == null || !contains(island, location, getIslandSize(island, dimension))) {
                         return Optional.empty();
                 }
 
                 return Optional.of(
                                 island);
+        }
+
+        public boolean contains(Island island, Location location, int size) {
+                if (location == null || location.getWorld() == null) return false;
+                int minX = island.getCenterX() - (size / 2);
+                int minZ = island.getCenterZ() - (size / 2);
+                return location.getX() >= minX && location.getX() < minX + size
+                                && location.getZ() >= minZ && location.getZ() < minZ + size;
         }
 
         private long centerKey(
@@ -1338,6 +1358,17 @@ public final class IslandManager {
                 return island == null ? getIslandSize() : island.getSize();
         }
 
+        public int getIslandSize(Island island, IslandDimension dimension) {
+                if (island == null) return getSizeUpgradeTiers(dimension).get(0).value();
+                if (dimensionManager == null || dimension == IslandDimension.OVERWORLD) return island.getSize();
+                return dimensionManager.getSize(island, dimension);
+        }
+
+        public int getIslandSize(Island island, World world) {
+                IslandDimension dimension = dimensionManager == null ? IslandDimension.OVERWORLD : dimensionManager.getDimension(world);
+                return getIslandSize(island, dimension == null ? IslandDimension.OVERWORLD : dimension);
+        }
+
         public int getMemberLimit(Island island) {
                 return island == null ? getMemberLimitTiers().get(0) : island.getMemberLimit();
         }
@@ -1351,15 +1382,20 @@ public final class IslandManager {
         }
 
         public List<IslandUpgradeTier> getSizeUpgradeTiers() {
-                return getUpgradeTiers(
-                                "island_upgrades.size.tiers",
-                                List.of(
-                                                new IslandUpgradeTier(50, 0.0D),
-                                                new IslandUpgradeTier(100, 10000.0D),
-                                                new IslandUpgradeTier(150, 35000.0D),
-                                                new IslandUpgradeTier(200, 100000.0D),
-                                                new IslandUpgradeTier(250, 250000.0D),
-                                                new IslandUpgradeTier(300, 600000.0D)));
+                return getSizeUpgradeTiers(IslandDimension.OVERWORLD);
+        }
+
+        public List<IslandUpgradeTier> getSizeUpgradeTiers(IslandDimension dimension) {
+                String key = dimension.getConfigKey();
+                double multiplier = dimension == IslandDimension.NETHER ? 2.0D : dimension == IslandDimension.END ? 3.0D : 1.0D;
+                List<IslandUpgradeTier> defaults = List.of(
+                        new IslandUpgradeTier(50, 0.0D),
+                        new IslandUpgradeTier(100, 10000.0D * multiplier),
+                        new IslandUpgradeTier(150, 35000.0D * multiplier),
+                        new IslandUpgradeTier(200, 100000.0D * multiplier),
+                        new IslandUpgradeTier(250, 250000.0D * multiplier),
+                        new IslandUpgradeTier(300, 600000.0D * multiplier));
+                return getUpgradeTiers("island_upgrades.size." + key + ".tiers", defaults);
         }
 
         public List<IslandUpgradeTier> getMemberLimitUpgradeTiers() {
@@ -1418,7 +1454,12 @@ public final class IslandManager {
         }
 
         public IslandUpgradeTier getNextSizeTier(Island island) {
-                return getSizeUpgradeTiers().stream().filter(tier -> tier.value() > island.getSize()).findFirst().orElse(null);
+                return getNextSizeTier(island, IslandDimension.OVERWORLD);
+        }
+
+        public IslandUpgradeTier getNextSizeTier(Island island, IslandDimension dimension) {
+                int current = getIslandSize(island, dimension);
+                return getSizeUpgradeTiers(dimension).stream().filter(tier -> tier.value() > current).findFirst().orElse(null);
         }
 
         public IslandUpgradeTier getNextMemberLimitTier(Island island) {
@@ -1435,19 +1476,20 @@ public final class IslandManager {
                 return tier == null ? null : tier.value();
         }
 
-        void upgradeSizeTo(UUID actorUuid, int value) throws SQLException {
+        void upgradeSizeTo(UUID actorUuid, IslandDimension dimension, int value) throws SQLException {
                 Island island = islandsByPlayer.get(actorUuid);
-                if (island == null) {
-                        throw new SQLException("Island could not be found for upgrade actor.");
+                if (island == null) throw new SQLException("Island could not be found for upgrade actor.");
+                if (dimensionManager == null) throw new SQLException("Island dimension manager is unavailable.");
+                dimensionManager.setSize(island, dimension, value);
+                if (dimension == IslandDimension.OVERWORLD) {
+                        try (PreparedStatement statement = database.getConnection().prepareStatement("UPDATE islands SET size = ? WHERE island_id = ?;")) {
+                                statement.setInt(1, value); statement.setLong(2, island.getIslandId()); statement.executeUpdate();
+                        }
                 }
+        }
 
-                try (PreparedStatement statement = database.getConnection().prepareStatement("UPDATE islands SET size = ? WHERE island_id = ?;")) {
-                        statement.setInt(1, value);
-                        statement.setLong(2, island.getIslandId());
-                        statement.executeUpdate();
-                }
-
-                island.setSize(value);
+        void upgradeSizeTo(UUID actorUuid, int value) throws SQLException {
+                upgradeSizeTo(actorUuid, IslandDimension.OVERWORLD, value);
         }
 
         void upgradeMemberLimitTo(UUID actorUuid, int value) throws SQLException {

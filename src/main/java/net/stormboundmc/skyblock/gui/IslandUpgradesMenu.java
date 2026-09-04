@@ -6,6 +6,7 @@ import net.stormboundmc.skyblock.StormboundSkyblock;
 import net.stormboundmc.skyblock.gui.holder.IslandUpgradesMenuHolder;
 import net.stormboundmc.skyblock.island.Island;
 import net.stormboundmc.skyblock.island.IslandManager;
+import net.stormboundmc.skyblock.island.IslandDimension;
 import net.stormboundmc.skyblock.island.IslandRole;
 import net.stormboundmc.skyblock.island.IslandUpgradeManager;
 import net.stormboundmc.skyblock.island.IslandUpgradeTier;
@@ -44,6 +45,10 @@ public final class IslandUpgradesMenu {
 
         IslandRole role = islandManager.getRole(player.getUniqueId()).orElse(IslandRole.MEMBER);
         boolean editable = role == IslandRole.OWNER || role == IslandRole.CO_OWNER;
+        IslandDimension dimension = islandManager.getDimensionManager() == null
+                ? IslandDimension.OVERWORLD
+                : islandManager.getDimensionManager().getDimension(player.getWorld());
+        if (dimension == null) dimension = IslandDimension.OVERWORLD;
 
         IslandUpgradesMenuHolder holder = new IslandUpgradesMenuHolder();
         Inventory inventory = Bukkit.createInventory(
@@ -51,8 +56,8 @@ public final class IslandUpgradesMenu {
                 45,
                 parse(plugin.getConfig().getString(
                         "gui.upgrades.title",
-                        "<gold><bold>⚙ ISLAND UPGRADES</bold></gold>"
-                ))
+                        "<gold><bold>⚙ {dimension} UPGRADES</bold></gold>"
+                ).replace("{dimension}", dimension.name()))
         );
         holder.setInventory(inventory);
 
@@ -72,14 +77,14 @@ public final class IslandUpgradesMenu {
             }
         }
 
-        IslandUpgradeTier nextSize = islandManager.getNextSizeTier(island);
+        IslandUpgradeTier nextSize = islandManager.getNextSizeTier(island, dimension);
         inventory.setItem(
                 plugin.getConfig().getInt("gui.upgrades.buttons.size.slot", 20),
                 item(
                         material("gui.upgrades.buttons.size.material", Material.GRASS_BLOCK),
                         "<yellow><bold>Island Size</bold></yellow>",
                         upgradeLore(
-                                island.getSize() + " x " + island.getSize(),
+                                islandManager.getIslandSize(island, dimension) + " x " + islandManager.getIslandSize(island, dimension),
                                 nextSize == null ? null : nextSize.value() + " x " + nextSize.value(),
                                 nextSize,
                                 editable,

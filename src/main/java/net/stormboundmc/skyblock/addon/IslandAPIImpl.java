@@ -13,6 +13,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Map;
+import net.stormboundmc.skyblock.island.IslandDimension;
 
 public final class IslandAPIImpl implements IslandAPI {
 
@@ -101,6 +103,10 @@ public final class IslandAPIImpl implements IslandAPI {
                 islandManager.getIslandSize(island),
                 islandManager.getMemberLimit(island),
                 islandManager.getMemberCount(island),
-                island.getCreatedAt());
+                island.getCreatedAt(),
+                Map.of(
+                        "overworld", islandManager.getIslandSize(island, IslandDimension.OVERWORLD),
+                        "nether", islandManager.getIslandSize(island, IslandDimension.NETHER),
+                        "end", islandManager.getIslandSize(island, IslandDimension.END)));
     }
 }

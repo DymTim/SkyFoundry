@@ -22,6 +22,23 @@ world:
   auto-create: true
 
 # ------------------------------------------------------------
+# Island Dimensions
+# ------------------------------------------------------------
+
+dimensions:
+  nether:
+    enabled: true
+    world: "stormbound_nether"
+    creation-y: 100
+    schematic: "schematics/starter_nether.schem"
+
+  end:
+    enabled: true
+    world: "stormbound_end"
+    creation-y: 100
+    schematic: "schematics/starter_end.schem"
+
+# ------------------------------------------------------------
 # Islands
 # ------------------------------------------------------------
 
@@ -166,7 +183,7 @@ settings:
 
 gui:
   upgrades:
-    title: "<gold><bold>⚙ ISLAND UPGRADES</bold></gold>"
+    title: "<gold><bold>⚙ {dimension} UPGRADES</bold></gold>"
     accents:
       material: "ORANGE_STAINED_GLASS_PANE"
       slots: [0, 4, 8, 40]
@@ -795,33 +812,40 @@ debug:
 # Costs are handled through Vault. Addons can later add extra progression requirements.
 island_upgrades:
   size:
-    enabled: true
-    tiers:
-      - value: 50
-        cost: 0
-      - value: 100
-        cost: 10000
-      - value: 150
-        cost: 35000
-      - value: 200
-        cost: 100000
-      - value: 250
-        cost: 250000
-      - value: 300
-        cost: 600000
-
+    overworld:
+      enabled: true
+      tiers:
+        - { value: 50, cost: 0 }
+        - { value: 100, cost: 10000 }
+        - { value: 150, cost: 35000 }
+        - { value: 200, cost: 100000 }
+        - { value: 250, cost: 250000 }
+        - { value: 300, cost: 600000 }
+    nether:
+      enabled: true
+      tiers:
+        - { value: 50, cost: 0 }
+        - { value: 100, cost: 20000 }
+        - { value: 150, cost: 70000 }
+        - { value: 200, cost: 200000 }
+        - { value: 250, cost: 500000 }
+        - { value: 300, cost: 1200000 }
+    end:
+      enabled: true
+      tiers:
+        - { value: 50, cost: 0 }
+        - { value: 100, cost: 30000 }
+        - { value: 150, cost: 105000 }
+        - { value: 200, cost: 300000 }
+        - { value: 250, cost: 750000 }
+        - { value: 300, cost: 1800000 }
   member_limit:
     enabled: true
     tiers:
-      - value: 5
-        cost: 0
-      - value: 6
-        cost: 15000
-      - value: 7
-        cost: 40000
-      - value: 8
-        cost: 90000
-      - value: 9
-        cost: 175000
-      - value: 10
-        cost: 350000
+      - { value: 5, cost: 0 }
+      - { value: 6, cost: 15000 }
+      - { value: 7, cost: 40000 }
+      - { value: 8, cost: 90000 }
+      - { value: 9, cost: 175000 }
+      - { value: 10, cost: 350000 }
+

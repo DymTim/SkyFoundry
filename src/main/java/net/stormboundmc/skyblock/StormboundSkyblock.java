@@ -13,6 +13,8 @@ import net.stormboundmc.skyblock.economy.EconomyManager;
 import net.stormboundmc.skyblock.gui.IslandMenu;
 import net.stormboundmc.skyblock.gui.IslandMenuListener;
 import net.stormboundmc.skyblock.island.IslandManager;
+import net.stormboundmc.skyblock.island.IslandDimension;
+import net.stormboundmc.skyblock.island.IslandDimensionManager;
 import net.stormboundmc.skyblock.island.IslandSettingsManager;
 import net.stormboundmc.skyblock.island.IslandUpgradeManager;
 import net.stormboundmc.skyblock.island.IslandVisualManager;
@@ -23,10 +25,14 @@ import net.stormboundmc.skyblock.world.VoidChunkGenerator;
 
 import java.io.File;
 import java.sql.SQLException;
+import java.util.EnumMap;
+import java.util.Map;
 
 public final class StormboundSkyblock extends JavaPlugin {
 
         private World islandWorld;
+        private final Map<IslandDimension, World> islandWorlds = new EnumMap<>(IslandDimension.class);
+        private IslandDimensionManager islandDimensionManager;
         private Database database;
         private IslandManager islandManager;
         private IslandSettingsManager islandSettingsManager;
@@ -63,6 +69,16 @@ public final class StormboundSkyblock extends JavaPlugin {
                 if (!setupIslandManager()) {
                         getLogger().severe(
                                         "Failed to initialize the island manager.");
+                        disablePlugin();
+                        return;
+                }
+
+                islandDimensionManager = new IslandDimensionManager(this, database, islandWorlds);
+                try {
+                        islandDimensionManager.load(islandManager.getIslands());
+                        islandManager.setDimensionManager(islandDimensionManager);
+                } catch (SQLException exception) {
+                        getLogger().severe("Failed to load island dimensions: " + exception.getMessage());
                         disablePlugin();
                         return;
                 }
@@ -200,7 +216,8 @@ public final class StormboundSkyblock extends JavaPlugin {
                                                         + worldName
                                                         + "'.");
 
-                        return true;
+                        islandWorlds.put(IslandDimension.OVERWORLD, islandWorld);
+                        return setupAdditionalDimensionWorlds();
                 }
 
                 if (!autoCreate) {
@@ -232,6 +249,37 @@ public final class StormboundSkyblock extends JavaPlugin {
                                                 + worldName
                                                 + "'.");
 
+                islandWorlds.put(IslandDimension.OVERWORLD, islandWorld);
+                return setupAdditionalDimensionWorlds();
+        }
+
+        private boolean setupAdditionalDimensionWorlds() {
+                for (IslandDimension dimension : new IslandDimension[] { IslandDimension.NETHER,
+                                IslandDimension.END }) {
+                        String path = "dimensions." + dimension.getConfigKey();
+                        if (!getConfig().getBoolean(path + ".enabled", true)) {
+                                continue;
+                        }
+                        String defaultName = dimension == IslandDimension.NETHER ? "stormbound_nether"
+                                        : "stormbound_end";
+                        String worldName = getConfig().getString(path + ".world", defaultName);
+                        World world = getServer().getWorld(worldName);
+                        if (world == null) {
+                                WorldCreator creator = new WorldCreator(worldName);
+                                creator.environment(dimension.getEnvironment());
+                                creator.generator(new VoidChunkGenerator());
+                                creator.generateStructures(false);
+                                world = creator.createWorld();
+                        }
+                        if (world == null) {
+                                getLogger().severe("Failed to create " + dimension.name() + " island world '"
+                                                + worldName + "'.");
+                                return false;
+                        }
+                        world.setAutoSave(true);
+                        islandWorlds.put(dimension, world);
+                        getLogger().info("Loaded " + dimension.name() + " island world '" + worldName + "'.");
+                }
                 return true;
         }
 
@@ -333,6 +381,14 @@ public final class StormboundSkyblock extends JavaPlugin {
 
         public World getIslandWorld() {
                 return islandWorld;
+        }
+
+        public IslandDimensionManager getIslandDimensionManager() {
+                return islandDimensionManager;
+        }
+
+        public World getIslandWorld(IslandDimension dimension) {
+                return islandWorlds.get(dimension);
         }
 
         public Database getDatabase() {
