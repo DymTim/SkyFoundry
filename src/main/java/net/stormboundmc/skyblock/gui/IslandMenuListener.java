@@ -17,6 +17,7 @@ import net.stormboundmc.skyblock.island.IslandRole;
 import net.stormboundmc.skyblock.island.IslandSettings;
 import net.stormboundmc.skyblock.island.IslandSettingsManager;
 import net.stormboundmc.skyblock.island.IslandTimeMode;
+import net.stormboundmc.skyblock.island.IslandUpgradeManager;
 import net.stormboundmc.skyblock.island.IslandVisualManager;
 import net.stormboundmc.skyblock.island.IslandWeatherMode;
 import org.bukkit.Bukkit;
@@ -41,20 +42,23 @@ public final class IslandMenuListener implements Listener {
     private final IslandSettingsMenu islandSettingsMenu;
     private final IslandVisualManager visualManager;
     private final IslandUpgradesMenu islandUpgradesMenu;
+    private final IslandUpgradeManager upgradeManager;
 
     public IslandMenuListener(
             StormboundSkyblock plugin,
             IslandManager islandManager,
             IslandSettingsManager settingsManager,
-            IslandVisualManager visualManager
+            IslandVisualManager visualManager,
+            IslandUpgradeManager upgradeManager
     ) {
         this.plugin = plugin;
         this.islandManager = islandManager;
         this.settingsManager = settingsManager;
         this.visualManager = visualManager;
+        this.upgradeManager = upgradeManager;
         this.islandMenu = new IslandMenu(plugin, islandManager);
         this.islandMembersMenu = new IslandMembersMenu(plugin, islandManager, islandMenu);
-        this.islandUpgradesMenu = new IslandUpgradesMenu(plugin, islandManager);
+        this.islandUpgradesMenu = new IslandUpgradesMenu(plugin, islandManager, upgradeManager);
         this.islandSettingsMenu = new IslandSettingsMenu(
                 plugin,
                 islandManager,
@@ -762,28 +766,110 @@ public final class IslandMenuListener implements Listener {
     }
 
     private void handleUpgradesMenuClick(Player player, int slot) {
-        if (slot == getSlot("gui.upgrades.buttons.back", 40)) { islandMenu.open(player); return; }
-        if (slot == getSlot("gui.upgrades.buttons.close", 44)) { player.closeInventory(); return; }
+        if (slot == getSlot("gui.upgrades.buttons.back", 40)) {
+            islandMenu.open(player);
+            return;
+        }
+        if (slot == getSlot("gui.upgrades.buttons.close", 44)) {
+            player.closeInventory();
+            return;
+        }
+
         Island island = islandManager.getIsland(player.getUniqueId()).orElse(null);
-        IslandRole role = islandManager.getRole(player.getUniqueId()).orElse(null);
-        if (island == null || role == null) return;
-        boolean editable = role == IslandRole.OWNER || role == IslandRole.CO_OWNER;
-        if (!editable) { sendGuiMessage(player,"gui.messages.upgrade-no-permission","<red>Only the Owner or Co-Owner can upgrade the island.</red>"); return; }
+        if (island == null) {
+            return;
+        }
+
         try {
             if (slot == getSlot("gui.upgrades.buttons.size", 20)) {
-                if (islandManager.upgradeSize(player.getUniqueId())) {
-                    visualManager.refreshIsland(island);
-                    sendGuiMessage(player,"gui.messages.upgrade-size-success","<green>Island size upgraded to <yellow>{value}x{value}</yellow>.</green>","{value}",String.valueOf(island.getSize()));
-                }
-                islandUpgradesMenu.open(player); return;
+                IslandUpgradeManager.Result result = upgradeManager.purchaseSize(player);
+                handleUpgradeResult(player, result, true, island);
+                islandUpgradesMenu.open(player);
+                return;
             }
+
             if (slot == getSlot("gui.upgrades.buttons.member-limit", 24)) {
-                if (islandManager.upgradeMemberLimit(player.getUniqueId())) sendGuiMessage(player,"gui.messages.upgrade-members-success","<green>Member limit upgraded to <yellow>{value}</yellow>.</green>","{value}",String.valueOf(island.getMemberLimit()));
+                IslandUpgradeManager.Result result = upgradeManager.purchaseMemberLimit(player);
+                handleUpgradeResult(player, result, false, island);
                 islandUpgradesMenu.open(player);
             }
         } catch (SQLException exception) {
             plugin.getLogger().severe("Failed to upgrade island: " + exception.getMessage());
-            sendGuiMessage(player,"gui.messages.upgrade-failed","<red>Could not save that island upgrade.</red>");
+            sendGuiMessage(
+                    player,
+                    "gui.messages.upgrade-failed",
+                    "<red>Could not save that island upgrade. Your payment was refunded.</red>"
+            );
+        }
+    }
+
+    private void handleUpgradeResult(
+            Player player,
+            IslandUpgradeManager.Result result,
+            boolean sizeUpgrade,
+            Island island
+    ) {
+        if (result.success()) {
+            if (sizeUpgrade) {
+                visualManager.refreshIsland(island);
+                sendGuiMessage(
+                        player,
+                        "gui.messages.upgrade-size-success",
+                        "<green>Island size upgraded to <yellow>{value}x{value}</yellow> for <gold>{cost}</gold>.</green>",
+                        "{value}",
+                        String.valueOf(result.value()),
+                        "{cost}",
+                        upgradeManager.getEconomyManager().format(result.cost())
+                );
+            } else {
+                sendGuiMessage(
+                        player,
+                        "gui.messages.upgrade-members-success",
+                        "<green>Member limit upgraded to <yellow>{value}</yellow> for <gold>{cost}</gold>.</green>",
+                        "{value}",
+                        String.valueOf(result.value()),
+                        "{cost}",
+                        upgradeManager.getEconomyManager().format(result.cost())
+                );
+            }
+            return;
+        }
+
+        switch (result.failure()) {
+            case NO_PERMISSION -> sendGuiMessage(
+                    player,
+                    "gui.messages.upgrade-no-permission",
+                    "<red>Only the Owner or Co-Owner can upgrade the island.</red>"
+            );
+            case MAX_TIER -> sendGuiMessage(
+                    player,
+                    "gui.messages.upgrade-max-tier",
+                    "<red>That island upgrade is already at its maximum tier.</red>"
+            );
+            case ECONOMY_UNAVAILABLE -> sendGuiMessage(
+                    player,
+                    "gui.messages.upgrade-economy-unavailable",
+                    "<red>The economy is currently unavailable.</red>"
+            );
+            case INSUFFICIENT_FUNDS -> sendGuiMessage(
+                    player,
+                    "gui.messages.upgrade-insufficient-funds",
+                    "<red>You need <gold>{cost}</gold> for that upgrade.</red>",
+                    "{cost}",
+                    upgradeManager.getEconomyManager().format(result.cost())
+            );
+            case PAYMENT_FAILED -> sendGuiMessage(
+                    player,
+                    "gui.messages.upgrade-payment-failed",
+                    "<red>The economy could not process that upgrade payment.</red>"
+            );
+            case NO_ISLAND -> sendGuiMessage(
+                    player,
+                    "gui.messages.upgrade-no-island",
+                    "<red>You are not part of an island.</red>"
+            );
+            case NONE -> {
+            }
         }
     }
 

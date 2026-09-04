@@ -1343,17 +1343,73 @@ public final class IslandManager {
         }
 
         public List<Integer> getSizeTiers() {
-                return getUpgradeTiers("island_upgrades.size.values", List.of(50, 100, 150, 200, 250, 300));
+                return getSizeUpgradeTiers().stream().map(IslandUpgradeTier::value).toList();
         }
 
         public List<Integer> getMemberLimitTiers() {
-                return getUpgradeTiers("island_upgrades.member_limit.values", List.of(5, 6, 7, 8, 9, 10));
+                return getMemberLimitUpgradeTiers().stream().map(IslandUpgradeTier::value).toList();
         }
 
-        private List<Integer> getUpgradeTiers(String path, List<Integer> defaults) {
-                List<Integer> configured = plugin.getConfig().getIntegerList(path);
-                List<Integer> values = configured.stream().filter(v -> v != null && v > 0).distinct().sorted().toList();
-                return values.isEmpty() ? defaults : values;
+        public List<IslandUpgradeTier> getSizeUpgradeTiers() {
+                return getUpgradeTiers(
+                                "island_upgrades.size.tiers",
+                                List.of(
+                                                new IslandUpgradeTier(50, 0.0D),
+                                                new IslandUpgradeTier(100, 10000.0D),
+                                                new IslandUpgradeTier(150, 35000.0D),
+                                                new IslandUpgradeTier(200, 100000.0D),
+                                                new IslandUpgradeTier(250, 250000.0D),
+                                                new IslandUpgradeTier(300, 600000.0D)));
+        }
+
+        public List<IslandUpgradeTier> getMemberLimitUpgradeTiers() {
+                return getUpgradeTiers(
+                                "island_upgrades.member_limit.tiers",
+                                List.of(
+                                                new IslandUpgradeTier(5, 0.0D),
+                                                new IslandUpgradeTier(6, 15000.0D),
+                                                new IslandUpgradeTier(7, 40000.0D),
+                                                new IslandUpgradeTier(8, 90000.0D),
+                                                new IslandUpgradeTier(9, 175000.0D),
+                                                new IslandUpgradeTier(10, 350000.0D)));
+        }
+
+        private List<IslandUpgradeTier> getUpgradeTiers(String path, List<IslandUpgradeTier> defaults) {
+                List<Map<?, ?>> configured = plugin.getConfig().getMapList(path);
+                List<IslandUpgradeTier> tiers = new ArrayList<>();
+
+                for (Map<?, ?> entry : configured) {
+                        Object valueObject = entry.get("value");
+                        Object costObject = entry.get("cost");
+
+                        if (!(valueObject instanceof Number valueNumber)) {
+                                continue;
+                        }
+
+                        int value = valueNumber.intValue();
+                        double cost = costObject instanceof Number costNumber ? costNumber.doubleValue() : 0.0D;
+
+                        if (value <= 0 || cost < 0.0D) {
+                                continue;
+                        }
+
+                        tiers.add(new IslandUpgradeTier(value, cost));
+                }
+
+                if (tiers.isEmpty()) {
+                        return defaults;
+                }
+
+                return tiers.stream()
+                                .sorted((left, right) -> Integer.compare(left.value(), right.value()))
+                                .collect(java.util.stream.Collectors.toMap(
+                                                IslandUpgradeTier::value,
+                                                tier -> tier,
+                                                (first, second) -> first,
+                                                java.util.LinkedHashMap::new))
+                                .values()
+                                .stream()
+                                .toList();
         }
 
         private int normalizeLoadedValue(int value, List<Integer> tiers) {
@@ -1361,42 +1417,52 @@ public final class IslandManager {
                 return value;
         }
 
+        public IslandUpgradeTier getNextSizeTier(Island island) {
+                return getSizeUpgradeTiers().stream().filter(tier -> tier.value() > island.getSize()).findFirst().orElse(null);
+        }
+
+        public IslandUpgradeTier getNextMemberLimitTier(Island island) {
+                return getMemberLimitUpgradeTiers().stream().filter(tier -> tier.value() > island.getMemberLimit()).findFirst().orElse(null);
+        }
+
         public Integer getNextSize(Island island) {
-                return getSizeTiers().stream().filter(v -> v > island.getSize()).findFirst().orElse(null);
+                IslandUpgradeTier tier = getNextSizeTier(island);
+                return tier == null ? null : tier.value();
         }
 
         public Integer getNextMemberLimit(Island island) {
-                return getMemberLimitTiers().stream().filter(v -> v > island.getMemberLimit()).findFirst().orElse(null);
+                IslandUpgradeTier tier = getNextMemberLimitTier(island);
+                return tier == null ? null : tier.value();
         }
 
-        public boolean upgradeSize(UUID actorUuid) throws SQLException {
+        void upgradeSizeTo(UUID actorUuid, int value) throws SQLException {
                 Island island = islandsByPlayer.get(actorUuid);
-                IslandRole role = getRole(actorUuid).orElse(null);
-                if (island == null || (role != IslandRole.OWNER && role != IslandRole.CO_OWNER)) return false;
-                Integer next = getNextSize(island);
-                if (next == null) return false;
+                if (island == null) {
+                        throw new SQLException("Island could not be found for upgrade actor.");
+                }
+
                 try (PreparedStatement statement = database.getConnection().prepareStatement("UPDATE islands SET size = ? WHERE island_id = ?;")) {
-                        statement.setInt(1, next);
+                        statement.setInt(1, value);
                         statement.setLong(2, island.getIslandId());
                         statement.executeUpdate();
                 }
-                island.setSize(next);
-                return true;
+
+                island.setSize(value);
         }
 
-        public boolean upgradeMemberLimit(UUID actorUuid) throws SQLException {
+        void upgradeMemberLimitTo(UUID actorUuid, int value) throws SQLException {
                 Island island = islandsByPlayer.get(actorUuid);
-                IslandRole role = getRole(actorUuid).orElse(null);
-                if (island == null || (role != IslandRole.OWNER && role != IslandRole.CO_OWNER)) return false;
-                Integer next = getNextMemberLimit(island);
-                if (next == null) return false;
+                if (island == null) {
+                        throw new SQLException("Island could not be found for upgrade actor.");
+                }
+
                 try (PreparedStatement statement = database.getConnection().prepareStatement("UPDATE islands SET member_limit = ? WHERE island_id = ?;")) {
-                        statement.setInt(1, next);
+                        statement.setInt(1, value);
                         statement.setLong(2, island.getIslandId());
                         statement.executeUpdate();
                 }
-                island.setMemberLimit(next);
-                return true;
+
+                island.setMemberLimit(value);
         }
 
         private CompletableFuture<Void> clearIsland(

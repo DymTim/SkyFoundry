@@ -772,6 +772,16 @@ messages:
   visit-disabled: "<red>That island is not accepting visitors.</red>"
   visit-success: "<green>Visiting <yellow>{player}</yellow>'s island.</green>"
 
+  upgrade-no-permission: "<red>Only the Owner or Co-Owner can upgrade the island.</red>"
+  upgrade-max-tier: "<red>That island upgrade is already at its maximum tier.</red>"
+  upgrade-economy-unavailable: "<red>The economy is currently unavailable.</red>"
+  upgrade-insufficient-funds: "<red>You need <gold>{cost}</gold> for that upgrade.</red>"
+  upgrade-payment-failed: "<red>The economy could not process that upgrade payment.</red>"
+  upgrade-no-island: "<red>You are not part of an island.</red>"
+  upgrade-failed: "<red>Could not save that island upgrade. Your payment was refunded.</red>"
+  upgrade-size-success: "<green>Island size upgraded to <yellow>{value}x{value}</yellow> for <gold>{cost}</gold>.</green>"
+  upgrade-members-success: "<green>Member limit upgraded to <yellow>{value}</yellow> for <gold>{cost}</gold>.</green>"
+
 # ------------------------------------------------------------
 # Debug
 # ------------------------------------------------------------
@@ -780,11 +790,38 @@ debug:
   # Enables additional information in the server console.
   enabled: false
 
-# Core island upgrade tiers. The first value is the default for newly created islands.
+# Core island upgrade tiers.
+# The first tier is the default value for newly created islands and should normally cost 0.
+# Costs are handled through Vault. Addons can later add extra progression requirements.
 island_upgrades:
   size:
     enabled: true
-    values: [50, 100, 150, 200, 250, 300]
+    tiers:
+      - value: 50
+        cost: 0
+      - value: 100
+        cost: 10000
+      - value: 150
+        cost: 35000
+      - value: 200
+        cost: 100000
+      - value: 250
+        cost: 250000
+      - value: 300
+        cost: 600000
+
   member_limit:
     enabled: true
-    values: [5, 6, 7, 8, 9, 10]
+    tiers:
+      - value: 5
+        cost: 0
+      - value: 6
+        cost: 15000
+      - value: 7
+        cost: 40000
+      - value: 8
+        cost: 90000
+      - value: 9
+        cost: 175000
+      - value: 10
+        cost: 350000

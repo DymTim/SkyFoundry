@@ -9,10 +9,12 @@ import net.stormboundmc.skyblock.addon.AddonManager;
 import net.stormboundmc.skyblock.addon.IslandAPIImpl;
 import net.stormboundmc.skyblock.api.StormboundAPI;
 import net.stormboundmc.skyblock.command.IslandCommand;
+import net.stormboundmc.skyblock.economy.EconomyManager;
 import net.stormboundmc.skyblock.gui.IslandMenu;
 import net.stormboundmc.skyblock.gui.IslandMenuListener;
 import net.stormboundmc.skyblock.island.IslandManager;
 import net.stormboundmc.skyblock.island.IslandSettingsManager;
+import net.stormboundmc.skyblock.island.IslandUpgradeManager;
 import net.stormboundmc.skyblock.island.IslandVisualManager;
 import net.stormboundmc.skyblock.protection.IslandProtectionListener;
 import net.stormboundmc.skyblock.schematic.SchematicManager;
@@ -29,6 +31,8 @@ public final class StormboundSkyblock extends JavaPlugin {
         private IslandManager islandManager;
         private IslandSettingsManager islandSettingsManager;
         private IslandVisualManager islandVisualManager;
+        private EconomyManager economyManager;
+        private IslandUpgradeManager islandUpgradeManager;
         private SchematicManager schematicManager;
         private AddonManager addonManager;
 
@@ -82,6 +86,13 @@ public final class StormboundSkyblock extends JavaPlugin {
                                 this,
                                 islandManager,
                                 islandSettingsManager);
+
+                economyManager = new EconomyManager(this);
+                economyManager.setup();
+
+                islandUpgradeManager = new IslandUpgradeManager(
+                                islandManager,
+                                economyManager);
 
                 schematicManager = new SchematicManager(this);
 
@@ -336,6 +347,14 @@ public final class StormboundSkyblock extends JavaPlugin {
                 return islandSettingsManager;
         }
 
+        public EconomyManager getEconomyManager() {
+                return economyManager;
+        }
+
+        public IslandUpgradeManager getIslandUpgradeManager() {
+                return islandUpgradeManager;
+        }
+
         public SchematicManager getSchematicManager() {
                 return schematicManager;
         }
@@ -368,7 +387,8 @@ public final class StormboundSkyblock extends JavaPlugin {
                                                                 this,
                                                                 islandManager,
                                                                 islandSettingsManager,
-                                                                islandVisualManager),
+                                                                islandVisualManager,
+                                                                islandUpgradeManager),
                                                 this);
 
                 getServer()

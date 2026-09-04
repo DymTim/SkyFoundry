@@ -2,6 +2,7 @@ name: StormboundSkyblock
 version: "${version}"
 main: net.stormboundmc.skyblock.StormboundSkyblock
 api-version: "1.21"
+softdepend: [Vault]
 
 description: A lightweight custom SkyBlock core built for Stormbound.
 
