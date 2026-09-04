@@ -47,6 +47,7 @@ invites:
 transfer:
   confirmation-timeout-seconds: 30
 
+
 # ------------------------------------------------------------
 # Addons
 # ------------------------------------------------------------
@@ -133,12 +134,13 @@ storage:
   # SQLite database file stored inside plugins/StormboundSkyblock/.
   database-file: "stormbound.db"
 
+
 # ------------------------------------------------------------
 # Island Info
 # ------------------------------------------------------------
 
 island-info:
-  title: "<gold><bold>⚙ SKYFOUNDRY ISLAND</bold></gold>"
+  title: "<gold><bold>⚙ STORMBOUND ISLAND</bold></gold>"
   owner: "<gray>Owner:</gray> <yellow>{owner}</yellow>"
   role: "<gray>Role:</gray> <yellow>{role}</yellow>"
   members: "<gray>Members:</gray> <yellow>{members}</yellow><gray>/</gray><yellow>{limit}</yellow>"
@@ -151,9 +153,20 @@ island-info:
 # Island GUI
 # ------------------------------------------------------------
 
+# ------------------------------------------------------------
+# Island Settings
+# ------------------------------------------------------------
+
+settings:
+  cosmetics:
+    permissions:
+      weather: "stormbound.skyblock.cosmetic.weather"
+      time: "stormbound.skyblock.cosmetic.time"
+      border: "stormbound.skyblock.cosmetic.border"
+
 gui:
   main:
-    title: "<gold><bold>⚙ SKYFOUNDRY ISLAND</bold></gold>"
+    title: "<gold><bold>⚙ STORMBOUND ISLAND</bold></gold>"
 
     filler:
       material: "GRAY_STAINED_GLASS_PANE"
@@ -241,9 +254,9 @@ gui:
         material: "COMPARATOR"
         name: "<yellow><bold>Island Settings</bold></yellow>"
         lore:
-          - "<gray>Configure island options.</gray>"
+          - "<gray>Configure access and cosmetics.</gray>"
           - ""
-          - "<dark_gray>Coming soon.</dark_gray>"
+          - "<gold>Click to open settings.</gold>"
 
       danger-owner:
         slot: 36
@@ -459,6 +472,194 @@ gui:
         material: "ARROW"
         name: "<yellow><bold>Back</bold></yellow>"
 
+  settings:
+    title: "<gold><bold>⚙ ISLAND SETTINGS</bold></gold>"
+
+    filler:
+      material: "GRAY_STAINED_GLASS_PANE"
+      name: " "
+
+    accents:
+      enabled: true
+      material: "ORANGE_STAINED_GLASS_PANE"
+      name: " "
+      slots: [0, 4, 8]
+
+    buttons:
+      visiting:
+        slot: 11
+        material: "ENDER_EYE"
+        name: "<yellow><bold>Island Visiting</bold></yellow>"
+        lore:
+          - "<gray>Allow other players to visit</gray>"
+          - "<gray>this island with /is visit.</gray>"
+
+      member-building:
+        slot: 13
+        material: "BRICKS"
+        name: "<yellow><bold>Member Building</bold></yellow>"
+        lore:
+          - "<gray>Allow regular Members to place</gray>"
+          - "<gray>and break blocks on the island.</gray>"
+
+      member-interactions:
+        slot: 15
+        material: "CHEST"
+        name: "<yellow><bold>Member Interactions</bold></yellow>"
+        lore:
+          - "<gray>Allow regular Members to use</gray>"
+          - "<gray>containers and machines.</gray>"
+
+      weather:
+        slot: 20
+        material: "WATER_BUCKET"
+        name: "<aqua><bold>Island Weather</bold></aqua>"
+        lore:
+          - "<gray>Change the weather players see</gray>"
+          - "<gray>while they are on this island.</gray>"
+
+      time:
+        slot: 22
+        material: "CLOCK"
+        name: "<aqua><bold>Island Time</bold></aqua>"
+        lore:
+          - "<gray>Change the time players see</gray>"
+          - "<gray>while they are on this island.</gray>"
+
+      border:
+        slot: 24
+        material: "GLASS"
+        name: "<aqua><bold>Island Border</bold></aqua>"
+        lore:
+          - "<gray>Show the vanilla Minecraft world</gray>"
+          - "<gray>border around this island.</gray>"
+
+      back:
+        slot: 40
+        material: "ARROW"
+        name: "<yellow><bold>Back</bold></yellow>"
+        lore:
+          - "<gray>Return to the island menu.</gray>"
+
+      close:
+        slot: 44
+        material: "BARRIER"
+        name: "<red><bold>Close</bold></red>"
+        lore:
+          - "<gray>Close this menu.</gray>"
+
+  settings-weather:
+    title: "<gold><bold>⚙ ISLAND WEATHER</bold></gold>"
+
+    filler:
+      material: "GRAY_STAINED_GLASS_PANE"
+      name: " "
+
+    accents:
+      enabled: true
+      material: "ORANGE_STAINED_GLASS_PANE"
+      name: " "
+      slots: [0, 4, 8]
+
+    buttons:
+      default:
+        slot: 20
+        material: "SUNFLOWER"
+        name: "<yellow><bold>Default Weather</bold></yellow>"
+        lore:
+          - "<gray>Follow the normal world weather.</gray>"
+          - ""
+
+      clear:
+        slot: 22
+        material: "GLOWSTONE"
+        name: "<yellow><bold>Clear</bold></yellow>"
+        lore:
+          - "<gray>Always show clear weather.</gray>"
+          - ""
+
+      rain:
+        slot: 24
+        material: "WATER_BUCKET"
+        name: "<aqua><bold>Rain</bold></aqua>"
+        lore:
+          - "<gray>Always show rainy weather.</gray>"
+          - ""
+
+      back:
+        slot: 40
+        material: "ARROW"
+        name: "<yellow><bold>Back</bold></yellow>"
+
+      close:
+        slot: 44
+        material: "BARRIER"
+        name: "<red><bold>Close</bold></red>"
+
+  settings-time:
+    title: "<gold><bold>⚙ ISLAND TIME</bold></gold>"
+
+    filler:
+      material: "GRAY_STAINED_GLASS_PANE"
+      name: " "
+
+    accents:
+      enabled: true
+      material: "ORANGE_STAINED_GLASS_PANE"
+      name: " "
+      slots: [0, 4, 8]
+
+    buttons:
+      default:
+        slot: 11
+        material: "CLOCK"
+        name: "<yellow><bold>Default Time</bold></yellow>"
+        lore:
+          - "<gray>Follow the normal world time.</gray>"
+          - ""
+
+      sunrise:
+        slot: 13
+        material: "ORANGE_DYE"
+        name: "<gold><bold>Sunrise</bold></gold>"
+        lore:
+          - "<gray>Lock the island view to sunrise.</gray>"
+          - ""
+
+      noon:
+        slot: 15
+        material: "GLOWSTONE"
+        name: "<yellow><bold>Noon</bold></yellow>"
+        lore:
+          - "<gray>Lock the island view to noon.</gray>"
+          - ""
+
+      sunset:
+        slot: 21
+        material: "RED_DYE"
+        name: "<gold><bold>Sunset</bold></gold>"
+        lore:
+          - "<gray>Lock the island view to sunset.</gray>"
+          - ""
+
+      midnight:
+        slot: 23
+        material: "BLACK_DYE"
+        name: "<dark_aqua><bold>Midnight</bold></dark_aqua>"
+        lore:
+          - "<gray>Lock the island view to midnight.</gray>"
+          - ""
+
+      back:
+        slot: 40
+        material: "ARROW"
+        name: "<yellow><bold>Back</bold></yellow>"
+
+      close:
+        slot: 44
+        material: "BARRIER"
+        name: "<red><bold>Close</bold></red>"
+
   messages:
     invite-instructions: "<gray>Use <gold>/island invite <player></gold> to invite someone.</gray>"
     upgrades-coming-soon: "<gray>Island upgrades are coming soon.</gray>"
@@ -469,7 +670,7 @@ gui:
 # ------------------------------------------------------------
 
 messages:
-  prefix: "<gold><bold>⚙ SKYFOUNDRY</bold></gold> <dark_gray>┃</dark_gray> "
+  prefix: "<gold><bold>⚙ STORMBOUND</bold></gold> <dark_gray>┃</dark_gray> "
 
   no-permission: "<red>You do not have permission to do that.</red>"
 
@@ -544,6 +745,15 @@ messages:
   kick-failed: "<red>Could not remove that island member.</red>"
   kick-success: "<green>{player} has been removed from the island.</green>"
   kicked: "<red>You have been removed from the island.</red>"
+
+  settings-view-only: "<red>Only the island Owner or a Co-Owner can change this setting.</red>"
+  cosmetic-locked: "<red>You do not have access to change this island cosmetic.</red>"
+  settings-save-failed: "<red>Could not save that island setting.</red>"
+
+  visit-player-not-found: "<red>That player must be online to visit their island.</red>"
+  visit-island-not-found: "<red>That player is not part of an island.</red>"
+  visit-disabled: "<red>That island is not accepting visitors.</red>"
+  visit-success: "<green>Visiting <yellow>{player}</yellow>'s island.</green>"
 
 # ------------------------------------------------------------
 # Debug

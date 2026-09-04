@@ -3,16 +3,28 @@ version: "${version}"
 main: net.stormboundmc.skyblock.StormboundSkyblock
 api-version: "1.21"
 
-description: A lightweight custom SkyBlock core built for Stormbound's SkyFoundry server.
+description: A lightweight custom SkyBlock core built for Stormbound.
 
 commands:
   island:
-    description: Main SkyFoundry island command.
+    description: Main Stormbound island command.
     usage: /island
     aliases:
       - is
 
 permissions:
   stormbound.skyblock.admin:
-    description: Bypass SkyFoundry island protection.
+    description: Bypass Stormbound island protection.
+    default: op
+
+  stormbound.skyblock.cosmetic.weather:
+    description: Allow an Owner or Co-Owner to change island weather cosmetics.
+    default: op
+
+  stormbound.skyblock.cosmetic.time:
+    description: Allow an Owner or Co-Owner to change island time cosmetics.
+    default: op
+
+  stormbound.skyblock.cosmetic.border:
+    description: Allow an Owner or Co-Owner to toggle the vanilla island border cosmetic.
     default: op

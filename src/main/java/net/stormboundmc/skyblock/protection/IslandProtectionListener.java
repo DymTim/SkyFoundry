@@ -1,5 +1,10 @@
 package net.stormboundmc.skyblock.protection;
 
+import net.stormboundmc.skyblock.StormboundSkyblock;
+import net.stormboundmc.skyblock.island.Island;
+import net.stormboundmc.skyblock.island.IslandManager;
+import net.stormboundmc.skyblock.island.IslandRole;
+import net.stormboundmc.skyblock.island.IslandSettingsManager;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -26,11 +31,6 @@ import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.projectiles.ProjectileSource;
 
-import net.stormboundmc.skyblock.island.Island;
-import net.stormboundmc.skyblock.island.IslandManager;
-import net.stormboundmc.skyblock.island.IslandRole;
-import net.stormboundmc.skyblock.StormboundSkyblock;
-
 import java.util.Optional;
 
 public final class IslandProtectionListener
@@ -38,13 +38,16 @@ public final class IslandProtectionListener
 
     private final StormboundSkyblock plugin;
     private final IslandManager islandManager;
+    private final IslandSettingsManager settingsManager;
     private final World islandWorld;
 
     public IslandProtectionListener(
             StormboundSkyblock plugin,
-            IslandManager islandManager) {
+            IslandManager islandManager,
+            IslandSettingsManager settingsManager) {
         this.plugin = plugin;
         this.islandManager = islandManager;
+        this.settingsManager = settingsManager;
         this.islandWorld = plugin.getIslandWorld();
     }
 
@@ -452,6 +455,10 @@ public final class IslandProtectionListener
                 .getRole(player.getUniqueId())
                 .orElse(null);
 
+        if (role == IslandRole.MEMBER) {
+            return settingsManager.getSettings(island).isMemberBuilding();
+        }
+
         return role != null
                 && role.canBuild();
     }
@@ -485,6 +492,10 @@ public final class IslandProtectionListener
         IslandRole role = islandManager
                 .getRole(player.getUniqueId())
                 .orElse(null);
+
+        if (role == IslandRole.MEMBER) {
+            return settingsManager.getSettings(island).isMemberInteractions();
+        }
 
         return role != null
                 && role.canInteract();
@@ -523,7 +534,7 @@ public final class IslandProtectionListener
         String prefix = plugin.getConfig()
                 .getString(
                         "messages.prefix",
-                        "<gold><bold>⚙ SKYFOUNDRY</bold></gold> <dark_gray>┃</dark_gray> ");
+                        "<gold><bold>⚙ STORMBOUND</bold></gold> <dark_gray>┃</dark_gray> ");
 
         String message = plugin.getConfig()
                 .getString(

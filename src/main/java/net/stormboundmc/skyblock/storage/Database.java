@@ -1,12 +1,12 @@
 package net.stormboundmc.skyblock.storage;
 
+import net.stormboundmc.skyblock.StormboundSkyblock;
+
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-
-import net.stormboundmc.skyblock.StormboundSkyblock;
 
 public final class Database {
 
@@ -26,7 +26,7 @@ public final class Database {
                 && !plugin.getDataFolder().mkdirs()) {
 
             throw new SQLException(
-                    "Could not create Stormbound plugin directory.");
+                    "Could not create StormboundSkyblock plugin directory.");
         }
 
         String databaseFileName = plugin.getConfig().getString(
@@ -158,6 +158,26 @@ public final class Database {
                     CREATE INDEX IF NOT EXISTS idx_island_invites_player
                     ON island_invites (
                         player_uuid
+                    );
+                    """);
+
+            statement.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS island_settings (
+                        island_id INTEGER PRIMARY KEY,
+                        member_building INTEGER NOT NULL DEFAULT 1,
+                        member_interactions INTEGER NOT NULL DEFAULT 1,
+                        visiting_enabled INTEGER NOT NULL DEFAULT 1,
+                        weather_mode TEXT NOT NULL DEFAULT 'DEFAULT',
+                        time_mode TEXT NOT NULL DEFAULT 'DEFAULT',
+                        border_enabled INTEGER NOT NULL DEFAULT 0,
+
+                        FOREIGN KEY (
+                            island_id
+                        )
+                        REFERENCES islands (
+                            island_id
+                        )
+                        ON DELETE CASCADE
                     );
                     """);
         }

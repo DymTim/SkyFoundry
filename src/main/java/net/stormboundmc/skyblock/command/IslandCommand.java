@@ -1,5 +1,12 @@
 package net.stormboundmc.skyblock.command;
 
+import net.stormboundmc.skyblock.StormboundSkyblock;
+import net.stormboundmc.skyblock.island.Island;
+import net.stormboundmc.skyblock.island.IslandManager;
+import net.stormboundmc.skyblock.island.IslandRole;
+import net.stormboundmc.skyblock.island.IslandSettingsManager;
+import net.stormboundmc.skyblock.gui.IslandMenu;
+import net.stormboundmc.skyblock.schematic.LoadedSchematic;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
@@ -13,13 +20,6 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
-
-import net.stormboundmc.skyblock.gui.IslandMenu;
-import net.stormboundmc.skyblock.island.Island;
-import net.stormboundmc.skyblock.island.IslandManager;
-import net.stormboundmc.skyblock.island.IslandRole;
-import net.stormboundmc.skyblock.schematic.LoadedSchematic;
-import net.stormboundmc.skyblock.StormboundSkyblock;
 
 import java.sql.SQLException;
 import java.time.Instant;
@@ -37,6 +37,7 @@ public final class IslandCommand
 
         private final StormboundSkyblock plugin;
         private final IslandManager islandManager;
+        private final IslandSettingsManager settingsManager;
         private final IslandMenu islandMenu;
 
         private final Map<UUID, Long> deletionConfirmations = new ConcurrentHashMap<>();
@@ -50,9 +51,11 @@ public final class IslandCommand
         public IslandCommand(
                         StormboundSkyblock plugin,
                         IslandManager islandManager,
+                        IslandSettingsManager settingsManager,
                         IslandMenu islandMenu) {
                 this.plugin = plugin;
                 this.islandManager = islandManager;
+                this.settingsManager = settingsManager;
                 this.islandMenu = islandMenu;
         }
 
@@ -92,6 +95,11 @@ public final class IslandCommand
                         case "info" ->
                                 handleInfo(
                                                 player);
+
+                        case "visit" ->
+                                handleVisit(
+                                                player,
+                                                args);
 
                         case "sethome" ->
                                 handleSetHome(
@@ -200,7 +208,7 @@ public final class IslandCommand
                 String title = plugin.getConfig()
                                 .getString(
                                                 "island-info.title",
-                                                "<gold><bold>⚙ SKYFOUNDRY ISLAND</bold></gold>");
+                                                "<gold><bold>⚙ STORMBOUND ISLAND</bold></gold>");
 
                 String ownerLine = plugin.getConfig()
                                 .getString(
@@ -287,6 +295,65 @@ public final class IslandCommand
                                 sizeLine);
                 player.sendRichMessage(
                                 createdLine);
+        }
+
+        private void handleVisit(
+                        Player player,
+                        String[] args) {
+                if (args.length < 2) {
+                        player.sendRichMessage(
+                                        getPrefix()
+                                                        + "<gray>Usage: <gold>/island visit <player></gold></gray>");
+                        return;
+                }
+
+                Player target = Bukkit.getPlayerExact(args[1]);
+
+                if (target == null) {
+                        sendMessage(
+                                        player,
+                                        "messages.visit-player-not-found",
+                                        "<red>That player must be online to visit their island.</red>");
+                        return;
+                }
+
+                Island island = islandManager
+                                .getIsland(target.getUniqueId())
+                                .orElse(null);
+
+                if (island == null) {
+                        sendMessage(
+                                        player,
+                                        "messages.visit-island-not-found",
+                                        "<red>That player is not part of an island.</red>");
+                        return;
+                }
+
+                boolean sameIsland = islandManager
+                                .getIsland(player.getUniqueId())
+                                .map(current -> current.getIslandId() == island.getIslandId())
+                                .orElse(false);
+
+                if (!sameIsland
+                                && !settingsManager.getSettings(island).isVisitingEnabled()) {
+                        sendMessage(
+                                        player,
+                                        "messages.visit-disabled",
+                                        "<red>That island is not accepting visitors.</red>");
+                        return;
+                }
+
+                player.teleport(island.getHome());
+
+                String message = plugin.getConfig().getString(
+                                "messages.visit-success",
+                                "<green>Visiting <yellow>{player}</yellow>'s island.</green>");
+
+                player.sendRichMessage(
+                                getPrefix()
+                                                + message.replace(
+                                                                "{player}",
+                                                                target.getName()));
         }
 
         private void handleCreate(
@@ -1193,6 +1260,7 @@ public final class IslandCommand
                                                 + "<gold>/island create</gold>, "
                                                 + "<gold>/island home</gold>, "
                                                 + "<gold>/island info</gold>, "
+                                                + "<gold>/island visit</gold>, "
                                                 + "<gold>/island sethome</gold>, "
                                                 + "<gold>/island invite</gold>, "
                                                 + "<gold>/island accept</gold>, "
@@ -1222,7 +1290,7 @@ public final class IslandCommand
                 return plugin.getConfig()
                                 .getString(
                                                 "messages.prefix",
-                                                "<gold><bold>⚙ SKYFOUNDRY</bold></gold> <dark_gray>┃</dark_gray> ");
+                                                "<gold><bold>⚙ STORMBOUND</bold></gold> <dark_gray>┃</dark_gray> ");
         }
 
         private String getRootMessage(

@@ -12,6 +12,8 @@ import net.stormboundmc.skyblock.command.IslandCommand;
 import net.stormboundmc.skyblock.gui.IslandMenu;
 import net.stormboundmc.skyblock.gui.IslandMenuListener;
 import net.stormboundmc.skyblock.island.IslandManager;
+import net.stormboundmc.skyblock.island.IslandSettingsManager;
+import net.stormboundmc.skyblock.island.IslandVisualManager;
 import net.stormboundmc.skyblock.protection.IslandProtectionListener;
 import net.stormboundmc.skyblock.schematic.SchematicManager;
 import net.stormboundmc.skyblock.storage.Database;
@@ -25,6 +27,8 @@ public final class StormboundSkyblock extends JavaPlugin {
         private World islandWorld;
         private Database database;
         private IslandManager islandManager;
+        private IslandSettingsManager islandSettingsManager;
+        private IslandVisualManager islandVisualManager;
         private SchematicManager schematicManager;
         private AddonManager addonManager;
 
@@ -59,6 +63,26 @@ public final class StormboundSkyblock extends JavaPlugin {
                         return;
                 }
 
+                islandSettingsManager = new IslandSettingsManager(
+                                this,
+                                database,
+                                islandManager);
+
+                try {
+                        islandSettingsManager.loadSettings();
+                } catch (SQLException exception) {
+                        getLogger().severe(
+                                        "Failed to load island settings: "
+                                                        + exception.getMessage());
+                        disablePlugin();
+                        return;
+                }
+
+                islandVisualManager = new IslandVisualManager(
+                                this,
+                                islandManager,
+                                islandSettingsManager);
+
                 schematicManager = new SchematicManager(this);
 
                 addonManager = new AddonManager(this);
@@ -76,6 +100,7 @@ public final class StormboundSkyblock extends JavaPlugin {
                 IslandCommand islandCommand = new IslandCommand(
                                 this,
                                 islandManager,
+                                islandSettingsManager,
                                 islandMenu);
 
                 getCommand("island").setExecutor(
@@ -307,6 +332,10 @@ public final class StormboundSkyblock extends JavaPlugin {
                 return islandManager;
         }
 
+        public IslandSettingsManager getIslandSettingsManager() {
+                return islandSettingsManager;
+        }
+
         public SchematicManager getSchematicManager() {
                 return schematicManager;
         }
@@ -322,7 +351,8 @@ public final class StormboundSkyblock extends JavaPlugin {
                                 .registerEvents(
                                                 new IslandProtectionListener(
                                                                 this,
-                                                                islandManager),
+                                                                islandManager,
+                                                                islandSettingsManager),
                                                 this);
 
                 getServer()
@@ -336,7 +366,15 @@ public final class StormboundSkyblock extends JavaPlugin {
                                 .registerEvents(
                                                 new IslandMenuListener(
                                                                 this,
-                                                                islandManager),
+                                                                islandManager,
+                                                                islandSettingsManager,
+                                                                islandVisualManager),
+                                                this);
+
+                getServer()
+                                .getPluginManager()
+                                .registerEvents(
+                                                islandVisualManager,
                                                 this);
         }
 }

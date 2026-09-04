@@ -1,5 +1,22 @@
 package net.stormboundmc.skyblock.gui;
 
+import net.stormboundmc.skyblock.StormboundSkyblock;
+import net.stormboundmc.skyblock.gui.holder.CreateIslandMenuHolder;
+import net.stormboundmc.skyblock.gui.holder.IslandMemberConfirmHolder;
+import net.stormboundmc.skyblock.gui.holder.IslandMemberMenuHolder;
+import net.stormboundmc.skyblock.gui.holder.IslandMembersMenuHolder;
+import net.stormboundmc.skyblock.gui.holder.IslandMenuHolder;
+import net.stormboundmc.skyblock.gui.holder.IslandSettingsMenuHolder;
+import net.stormboundmc.skyblock.gui.holder.IslandTimeMenuHolder;
+import net.stormboundmc.skyblock.gui.holder.IslandWeatherMenuHolder;
+import net.stormboundmc.skyblock.island.IslandManager;
+import net.stormboundmc.skyblock.island.IslandMember;
+import net.stormboundmc.skyblock.island.IslandRole;
+import net.stormboundmc.skyblock.island.IslandSettings;
+import net.stormboundmc.skyblock.island.IslandSettingsManager;
+import net.stormboundmc.skyblock.island.IslandTimeMode;
+import net.stormboundmc.skyblock.island.IslandVisualManager;
+import net.stormboundmc.skyblock.island.IslandWeatherMode;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -8,16 +25,6 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
-
-import net.stormboundmc.skyblock.gui.holder.CreateIslandMenuHolder;
-import net.stormboundmc.skyblock.gui.holder.IslandMemberConfirmHolder;
-import net.stormboundmc.skyblock.gui.holder.IslandMemberMenuHolder;
-import net.stormboundmc.skyblock.gui.holder.IslandMembersMenuHolder;
-import net.stormboundmc.skyblock.gui.holder.IslandMenuHolder;
-import net.stormboundmc.skyblock.island.IslandManager;
-import net.stormboundmc.skyblock.island.IslandMember;
-import net.stormboundmc.skyblock.island.IslandRole;
-import net.stormboundmc.skyblock.StormboundSkyblock;
 
 import java.sql.SQLException;
 import java.util.UUID;
@@ -28,14 +35,28 @@ public final class IslandMenuListener implements Listener {
     private final IslandManager islandManager;
     private final IslandMenu islandMenu;
     private final IslandMembersMenu islandMembersMenu;
+    private final IslandSettingsManager settingsManager;
+    private final IslandSettingsMenu islandSettingsMenu;
+    private final IslandVisualManager visualManager;
 
     public IslandMenuListener(
             StormboundSkyblock plugin,
-            IslandManager islandManager) {
+            IslandManager islandManager,
+            IslandSettingsManager settingsManager,
+            IslandVisualManager visualManager
+    ) {
         this.plugin = plugin;
         this.islandManager = islandManager;
+        this.settingsManager = settingsManager;
+        this.visualManager = visualManager;
         this.islandMenu = new IslandMenu(plugin, islandManager);
         this.islandMembersMenu = new IslandMembersMenu(plugin, islandManager, islandMenu);
+        this.islandSettingsMenu = new IslandSettingsMenu(
+                plugin,
+                islandManager,
+                settingsManager,
+                islandMenu
+        );
     }
 
     @EventHandler
@@ -80,6 +101,21 @@ public final class IslandMenuListener implements Listener {
             return;
         }
 
+        if (holder instanceof IslandSettingsMenuHolder) {
+            handleSettingsMenuClick(player, slot);
+            return;
+        }
+
+        if (holder instanceof IslandWeatherMenuHolder) {
+            handleWeatherMenuClick(player, slot);
+            return;
+        }
+
+        if (holder instanceof IslandTimeMenuHolder) {
+            handleTimeMenuClick(player, slot);
+            return;
+        }
+
         handleMainMenuClick(player, slot);
     }
 
@@ -106,7 +142,10 @@ public final class IslandMenuListener implements Listener {
                 || holder instanceof CreateIslandMenuHolder
                 || holder instanceof IslandMembersMenuHolder
                 || holder instanceof IslandMemberMenuHolder
-                || holder instanceof IslandMemberConfirmHolder;
+                || holder instanceof IslandMemberConfirmHolder
+                || holder instanceof IslandSettingsMenuHolder
+                || holder instanceof IslandWeatherMenuHolder
+                || holder instanceof IslandTimeMenuHolder;
     }
 
     private void handleMainMenuClick(Player player, int slot) {
@@ -141,7 +180,8 @@ public final class IslandMenuListener implements Listener {
                 sendGuiMessage(
                         player,
                         "messages.invite-no-permission",
-                        "<red>Your island role cannot invite players.</red>");
+                        "<red>Your island role cannot invite players.</red>"
+                );
                 return;
             }
 
@@ -149,7 +189,8 @@ public final class IslandMenuListener implements Listener {
             sendGuiMessage(
                     player,
                     "gui.messages.invite-instructions",
-                    "<gray>Use <gold>/island invite <player></gold> to invite someone.</gray>");
+                    "<gray>Use <gold>/island invite <player></gold> to invite someone.</gray>"
+            );
             return;
         }
 
@@ -157,15 +198,13 @@ public final class IslandMenuListener implements Listener {
             sendGuiMessage(
                     player,
                     "gui.messages.upgrades-coming-soon",
-                    "<gray>Island upgrades are coming soon.</gray>");
+                    "<gray>Island upgrades are coming soon.</gray>"
+            );
             return;
         }
 
         if (slot == getSlot("gui.main.buttons.settings", 32)) {
-            sendGuiMessage(
-                    player,
-                    "gui.messages.settings-coming-soon",
-                    "<gray>Island settings are coming soon.</gray>");
+            islandSettingsMenu.open(player);
             return;
         }
 
@@ -194,6 +233,231 @@ public final class IslandMenuListener implements Listener {
         }
     }
 
+    private void handleSettingsMenuClick(Player player, int slot) {
+        IslandSettings settings = settingsManager
+                .getSettings(player.getUniqueId())
+                .orElse(null);
+
+        if (settings == null) {
+            islandMenu.open(player);
+            return;
+        }
+
+        boolean canManage = settingsManager.canManage(player.getUniqueId());
+
+        if (slot == getSlot("gui.settings.buttons.visiting", 11)) {
+            if (!canManage) {
+                sendViewOnly(player);
+                return;
+            }
+            updateFunctionalSetting(player, "visiting", !settings.isVisitingEnabled());
+            return;
+        }
+
+        if (slot == getSlot("gui.settings.buttons.member-building", 13)) {
+            if (!canManage) {
+                sendViewOnly(player);
+                return;
+            }
+            updateFunctionalSetting(player, "building", !settings.isMemberBuilding());
+            return;
+        }
+
+        if (slot == getSlot("gui.settings.buttons.member-interactions", 15)) {
+            if (!canManage) {
+                sendViewOnly(player);
+                return;
+            }
+            updateFunctionalSetting(player, "interactions", !settings.isMemberInteractions());
+            return;
+        }
+
+        if (slot == getSlot("gui.settings.buttons.weather", 20)) {
+            if (!canEditCosmetic(player, "settings.cosmetics.permissions.weather", "stormbound.skyblock.cosmetic.weather")) {
+                sendCosmeticLocked(player);
+                return;
+            }
+            islandSettingsMenu.openWeather(player);
+            return;
+        }
+
+        if (slot == getSlot("gui.settings.buttons.time", 22)) {
+            if (!canEditCosmetic(player, "settings.cosmetics.permissions.time", "stormbound.skyblock.cosmetic.time")) {
+                sendCosmeticLocked(player);
+                return;
+            }
+            islandSettingsMenu.openTime(player);
+            return;
+        }
+
+        if (slot == getSlot("gui.settings.buttons.border", 24)) {
+            if (!canEditCosmetic(player, "settings.cosmetics.permissions.border", "stormbound.skyblock.cosmetic.border")) {
+                sendCosmeticLocked(player);
+                return;
+            }
+
+            try {
+                if (settingsManager.setBorderEnabled(player.getUniqueId(), !settings.isBorderEnabled())) {
+                    refreshIslandVisuals(player);
+                }
+                islandSettingsMenu.open(player);
+            } catch (SQLException exception) {
+                logSettingsError(exception);
+                sendSettingsFailed(player);
+            }
+            return;
+        }
+
+        if (slot == getSlot("gui.settings.buttons.back", 40)) {
+            islandMenu.open(player);
+            return;
+        }
+
+        if (slot == getSlot("gui.settings.buttons.close", 44)) {
+            player.closeInventory();
+        }
+    }
+
+    private void handleWeatherMenuClick(Player player, int slot) {
+        if (!canEditCosmetic(player, "settings.cosmetics.permissions.weather", "stormbound.skyblock.cosmetic.weather")) {
+            sendCosmeticLocked(player);
+            islandSettingsMenu.open(player);
+            return;
+        }
+
+        IslandWeatherMode mode = null;
+        if (slot == getSlot("gui.settings-weather.buttons.default", 20)) {
+            mode = IslandWeatherMode.DEFAULT;
+        } else if (slot == getSlot("gui.settings-weather.buttons.clear", 22)) {
+            mode = IslandWeatherMode.CLEAR;
+        } else if (slot == getSlot("gui.settings-weather.buttons.rain", 24)) {
+            mode = IslandWeatherMode.RAIN;
+        } else if (slot == getSlot("gui.settings-weather.buttons.back", 40)) {
+            islandSettingsMenu.open(player);
+            return;
+        } else if (slot == getSlot("gui.settings-weather.buttons.close", 44)) {
+            player.closeInventory();
+            return;
+        }
+
+        if (mode == null) {
+            return;
+        }
+
+        try {
+            if (settingsManager.setWeatherMode(player.getUniqueId(), mode)) {
+                refreshIslandVisuals(player);
+            }
+            islandSettingsMenu.openWeather(player);
+        } catch (SQLException exception) {
+            logSettingsError(exception);
+            sendSettingsFailed(player);
+        }
+    }
+
+    private void handleTimeMenuClick(Player player, int slot) {
+        if (!canEditCosmetic(player, "settings.cosmetics.permissions.time", "stormbound.skyblock.cosmetic.time")) {
+            sendCosmeticLocked(player);
+            islandSettingsMenu.open(player);
+            return;
+        }
+
+        IslandTimeMode mode = null;
+        if (slot == getSlot("gui.settings-time.buttons.default", 11)) {
+            mode = IslandTimeMode.DEFAULT;
+        } else if (slot == getSlot("gui.settings-time.buttons.sunrise", 13)) {
+            mode = IslandTimeMode.SUNRISE;
+        } else if (slot == getSlot("gui.settings-time.buttons.noon", 15)) {
+            mode = IslandTimeMode.NOON;
+        } else if (slot == getSlot("gui.settings-time.buttons.sunset", 21)) {
+            mode = IslandTimeMode.SUNSET;
+        } else if (slot == getSlot("gui.settings-time.buttons.midnight", 23)) {
+            mode = IslandTimeMode.MIDNIGHT;
+        } else if (slot == getSlot("gui.settings-time.buttons.back", 40)) {
+            islandSettingsMenu.open(player);
+            return;
+        } else if (slot == getSlot("gui.settings-time.buttons.close", 44)) {
+            player.closeInventory();
+            return;
+        }
+
+        if (mode == null) {
+            return;
+        }
+
+        try {
+            if (settingsManager.setTimeMode(player.getUniqueId(), mode)) {
+                refreshIslandVisuals(player);
+            }
+            islandSettingsMenu.openTime(player);
+        } catch (SQLException exception) {
+            logSettingsError(exception);
+            sendSettingsFailed(player);
+        }
+    }
+
+    private void updateFunctionalSetting(Player player, String setting, boolean enabled) {
+        try {
+            boolean changed = switch (setting) {
+                case "visiting" -> settingsManager.setVisitingEnabled(player.getUniqueId(), enabled);
+                case "building" -> settingsManager.setMemberBuilding(player.getUniqueId(), enabled);
+                case "interactions" -> settingsManager.setMemberInteractions(player.getUniqueId(), enabled);
+                default -> false;
+            };
+
+            if (!changed) {
+                sendSettingsFailed(player);
+                return;
+            }
+
+            islandSettingsMenu.open(player);
+        } catch (SQLException exception) {
+            logSettingsError(exception);
+            sendSettingsFailed(player);
+        }
+    }
+
+    private boolean canEditCosmetic(Player player, String path, String fallback) {
+        if (!settingsManager.canManage(player.getUniqueId())) {
+            return false;
+        }
+
+        String permission = plugin.getConfig().getString(path, fallback);
+        return permission != null && !permission.isBlank() && player.hasPermission(permission);
+    }
+
+    private void refreshIslandVisuals(Player player) {
+        islandManager.getIsland(player.getUniqueId()).ifPresent(visualManager::refreshIsland);
+    }
+
+    private void sendViewOnly(Player player) {
+        sendGuiMessage(
+                player,
+                "messages.settings-view-only",
+                "<red>Only the island Owner or a Co-Owner can change this setting.</red>"
+        );
+    }
+
+    private void sendCosmeticLocked(Player player) {
+        sendGuiMessage(
+                player,
+                "messages.cosmetic-locked",
+                "<red>You do not have access to change this island cosmetic.</red>"
+        );
+    }
+
+    private void sendSettingsFailed(Player player) {
+        sendGuiMessage(
+                player,
+                "messages.settings-save-failed",
+                "<red>Could not save that island setting.</red>"
+        );
+    }
+
+    private void logSettingsError(SQLException exception) {
+        plugin.getLogger().severe("Failed to update island settings: " + exception.getMessage());
+    }
+
     private void handleCreateMenuClick(Player player, int slot) {
         if (slot == getSlot("gui.create.buttons.create", 22)) {
             runIslandCommand(player, "create");
@@ -208,7 +472,8 @@ public final class IslandMenuListener implements Listener {
     private void handleMembersMenuClick(
             Player player,
             IslandMembersMenuHolder holder,
-            int slot) {
+            int slot
+    ) {
         UUID memberUuid = holder.getMember(slot).orElse(null);
 
         if (memberUuid != null) {
@@ -229,7 +494,8 @@ public final class IslandMenuListener implements Listener {
             sendGuiMessage(
                     player,
                     "gui.messages.invite-instructions",
-                    "<gray>Use <gold>/island invite <player></gold> to invite someone.</gray>");
+                    "<gray>Use <gold>/island invite <player></gold> to invite someone.</gray>"
+            );
             return;
         }
 
@@ -246,7 +512,8 @@ public final class IslandMenuListener implements Listener {
     private void handleMemberMenuClick(
             Player player,
             IslandMemberMenuHolder holder,
-            int slot) {
+            int slot
+    ) {
         UUID targetUuid = holder.getTargetUuid();
         IslandMember target = islandManager
                 .getMember(targetUuid)
@@ -286,7 +553,8 @@ public final class IslandMenuListener implements Listener {
             islandMembersMenu.openConfirmation(
                     player,
                     targetUuid,
-                    IslandMemberConfirmHolder.Action.TRANSFER);
+                    IslandMemberConfirmHolder.Action.TRANSFER
+            );
             return;
         }
 
@@ -296,7 +564,8 @@ public final class IslandMenuListener implements Listener {
             islandMembersMenu.openConfirmation(
                     player,
                     targetUuid,
-                    IslandMemberConfirmHolder.Action.KICK);
+                    IslandMemberConfirmHolder.Action.KICK
+            );
             return;
         }
 
@@ -313,7 +582,8 @@ public final class IslandMenuListener implements Listener {
     private void handleConfirmationClick(
             Player player,
             IslandMemberConfirmHolder holder,
-            int slot) {
+            int slot
+    ) {
         if (slot == getSlot("gui.member-confirm.buttons.cancel", 24)
                 || slot == getSlot("gui.member-confirm.buttons.back", 40)) {
             islandMembersMenu.openMember(player, holder.getTargetUuid());
@@ -334,13 +604,15 @@ public final class IslandMenuListener implements Listener {
     private void changeRole(
             Player player,
             UUID targetUuid,
-            IslandRole newRole) {
+            IslandRole newRole
+    ) {
         try {
             if (!islandManager.setRole(player.getUniqueId(), targetUuid, newRole)) {
                 sendGuiMessage(
                         player,
                         "messages.role-change-failed",
-                        "<red>Could not change that player's island role.</red>");
+                        "<red>Could not change that player's island role.</red>"
+                );
                 islandMembersMenu.openMember(player, targetUuid);
                 return;
             }
@@ -353,7 +625,8 @@ public final class IslandMenuListener implements Listener {
                     "messages.role-changed",
                     "<green>{player}'s role is now <yellow>{role}</yellow>.</green>",
                     "{player}", targetName,
-                    "{role}", roleName);
+                    "{role}", roleName
+            );
 
             Player targetPlayer = Bukkit.getPlayer(targetUuid);
             if (targetPlayer != null && targetPlayer.isOnline()) {
@@ -361,19 +634,22 @@ public final class IslandMenuListener implements Listener {
                         targetPlayer,
                         "messages.your-role-changed",
                         "<green>Your island role is now <yellow>{role}</yellow>.</green>",
-                        "{role}", roleName);
+                        "{role}", roleName
+                );
             }
 
             islandMembersMenu.openMember(player, targetUuid);
 
         } catch (SQLException exception) {
             plugin.getLogger().severe(
-                    "Failed to change island member role: " + exception.getMessage());
+                    "Failed to change island member role: " + exception.getMessage()
+            );
 
             sendGuiMessage(
                     player,
                     "messages.role-change-failed",
-                    "<red>Could not change that player's island role.</red>");
+                    "<red>Could not change that player's island role.</red>"
+            );
         }
     }
 
@@ -385,7 +661,8 @@ public final class IslandMenuListener implements Listener {
                 sendGuiMessage(
                         player,
                         "messages.kick-failed",
-                        "<red>Could not remove that island member.</red>");
+                        "<red>Could not remove that island member.</red>"
+                );
                 islandMembersMenu.openMembers(player);
                 return;
             }
@@ -394,26 +671,30 @@ public final class IslandMenuListener implements Listener {
                     player,
                     "messages.kick-success",
                     "<green>{player} has been removed from the island.</green>",
-                    "{player}", targetName);
+                    "{player}", targetName
+            );
 
             Player targetPlayer = Bukkit.getPlayer(targetUuid);
             if (targetPlayer != null && targetPlayer.isOnline()) {
                 sendGuiMessage(
                         targetPlayer,
                         "messages.kicked",
-                        "<red>You have been removed from the island.</red>");
+                        "<red>You have been removed from the island.</red>"
+                );
             }
 
             islandMembersMenu.openMembers(player);
 
         } catch (SQLException exception) {
             plugin.getLogger().severe(
-                    "Failed to kick island member: " + exception.getMessage());
+                    "Failed to kick island member: " + exception.getMessage()
+            );
 
             sendGuiMessage(
                     player,
                     "messages.kick-failed",
-                    "<red>Could not remove that island member.</red>");
+                    "<red>Could not remove that island member.</red>"
+            );
         }
     }
 
@@ -425,7 +706,8 @@ public final class IslandMenuListener implements Listener {
                 sendGuiMessage(
                         player,
                         "messages.transfer-failed",
-                        "<red>Could not transfer island ownership.</red>");
+                        "<red>Could not transfer island ownership.</red>"
+                );
                 islandMembersMenu.openMembers(player);
                 return;
             }
@@ -434,33 +716,38 @@ public final class IslandMenuListener implements Listener {
                     player,
                     "messages.transfer-success",
                     "<green>Island ownership has been transferred to <yellow>{player}</yellow>.</green>",
-                    "{player}", targetName);
+                    "{player}", targetName
+            );
 
             Player targetPlayer = Bukkit.getPlayer(targetUuid);
             if (targetPlayer != null && targetPlayer.isOnline()) {
                 sendGuiMessage(
                         targetPlayer,
                         "messages.transfer-received",
-                        "<green>You are now the owner of this island.</green>");
+                        "<green>You are now the owner of this island.</green>"
+                );
             }
 
             islandMenu.open(player);
 
         } catch (SQLException exception) {
             plugin.getLogger().severe(
-                    "Failed to transfer island ownership: " + exception.getMessage());
+                    "Failed to transfer island ownership: " + exception.getMessage()
+            );
 
             sendGuiMessage(
                     player,
                     "messages.transfer-failed",
-                    "<red>Could not transfer island ownership.</red>");
+                    "<red>Could not transfer island ownership.</red>"
+            );
         }
     }
 
     private boolean canKick(
             IslandRole viewerRole,
             IslandRole targetRole,
-            boolean targetIsSelf) {
+            boolean targetIsSelf
+    ) {
         if (targetIsSelf || targetRole == IslandRole.OWNER || !viewerRole.canKick()) {
             return false;
         }
@@ -475,7 +762,9 @@ public final class IslandMenuListener implements Listener {
                 plugin,
                 () -> Bukkit.dispatchCommand(
                         player,
-                        "island " + arguments));
+                        "island " + arguments
+                )
+        );
     }
 
     private int getSlot(String path, int fallback) {
@@ -494,10 +783,12 @@ public final class IslandMenuListener implements Listener {
             Player player,
             String path,
             String fallback,
-            String... replacements) {
+            String... replacements
+    ) {
         String prefix = plugin.getConfig().getString(
                 "messages.prefix",
-                "<gold><bold>⚙ SKYFOUNDRY</bold></gold> <dark_gray>┃</dark_gray> ");
+                "<gold><bold>⚙ STORMBOUND</bold></gold> <dark_gray>┃</dark_gray> "
+        );
 
         String message = plugin.getConfig().getString(path, fallback);
 

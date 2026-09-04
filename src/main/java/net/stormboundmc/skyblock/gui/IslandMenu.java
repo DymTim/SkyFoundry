@@ -64,7 +64,7 @@ public final class IslandMenu {
                 Component title = miniMessage.deserialize(
                                 plugin.getConfig().getString(
                                                 "gui.main.title",
-                                                "<gold><bold>⚙ SKYFOUNDRY ISLAND</bold></gold>"));
+                                                "<gold><bold>⚙ STORMBOUND ISLAND</bold></gold>"));
 
                 Inventory inventory = Bukkit.createInventory(
                                 holder,
